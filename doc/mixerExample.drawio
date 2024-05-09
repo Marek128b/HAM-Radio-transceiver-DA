@@ -1,0 +1,55 @@
+<mxfile host="65bd71144e">
+    <diagram id="8H0sIAjS5onMigSW9tb7" name="Page-1">
+        <mxGraphModel dx="550" dy="382" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="" style="shape=sumEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;backgroundOutline=1;" vertex="1" parent="1">
+                    <mxGeometry x="680" y="200" width="80" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="" style="endArrow=classic;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" target="2">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="520" y="240" as="sourcePoint"/>
+                        <mxPoint x="740" y="280" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="7" value="RF in" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="3">
+                    <mxGeometry x="-0.1958" y="3" relative="1" as="geometry">
+                        <mxPoint x="-24" y="3" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="4" value="" style="endArrow=classic;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="2">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="780" y="239.83" as="sourcePoint"/>
+                        <mxPoint x="920" y="240" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="5" value="" style="endArrow=classic;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" target="2">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="720" y="400" as="sourcePoint"/>
+                        <mxPoint x="730" y="350" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="6" value="VFO" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="5">
+                    <mxGeometry x="0.4" y="-1" relative="1" as="geometry">
+                        <mxPoint x="-1" y="44" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="14" value="3.7MHz - 0.5MHz&lt;br&gt;= 3.2MHz" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="5">
+                    <mxGeometry x="0.4889" y="-1" relative="1" as="geometry">
+                        <mxPoint y="9" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="8" value="0.5MHz" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;spacing=0;" vertex="1" parent="1">
+                    <mxGeometry x="770" y="220" width="60" height="20" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" value="3.7MHz&amp;nbsp;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;spacing=0;" vertex="1" parent="1">
+                    <mxGeometry x="599.67" y="230" width="60" height="10" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="6.9MHz" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;spacing=0;" vertex="1" parent="1">
+                    <mxGeometry x="770" y="240" width="60" height="20" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
