@@ -1,22 +1,39 @@
 # HAM-Radio-transceiver-DA
 
+**table of content**
+- [HAM-Radio-transceiver-DA](#ham-radio-transceiver-da)
+    - [Transceiver](#transceiver)
+    - [CW-receive](#cw-receive)
+    - [singleSideBand-receive](#singlesideband-receive)
+    - [First Mixer](#first-mixer)
+---
 
-### CW-Empfang
+### Transceiver
+Source: [Hamradio.si](https://lea.hamradio.si/~s53mv/zifssb/block.html)
+<img src="doc/img/b01.gif" width=100%> <br>
+
+
+### CW-receive
 Source: [ShortwaveRadio.ch](http://www.shortwaveradio.ch/doku.php?id=de:prinzip) <br>
-<img src="doc/img/grundlagen-superhet-bfo.jpg"> <br>
-Morsezeichen, welche durch einfaches Ein- und Ausschalten eines nicht-mobulierten Hochfrequenzsignals entstehen (A1) werden im Kopfhörer nicht resp. höchstens durch leichtes Rauschen wahrgenommen. Um diese Morsezeichen hörbar zu machen, muss dem Antennensignal ein Oszillatorsignal beigemischt werden, welches sich um den Frequenzbetrag vom Antennensignal unterscheidet, der dann als hörbare Frequenz im Kopfhörer ertönen soll. Dieser, zum Telegraphieempfang (bezeichnet als A1, Telegraphie tonlos) zuzuschaltende Oszillator wird als „Telegraphieüberlagerer“ oder BFO (Beat Frequency Oscillator) bezeichnet.
+<img src="doc/img/grundlagen-superhet-bfo.jpg" width=100%> <br> 
+Morse signs, which arise from simply switching on and off a non-mobulated high frequency signal (A1) are not or are not in the headphones.At most perceived by slight noise.In order to make these morse signs audible, an oscillator signal must be added to the antenna signal, which differs around the frequency amount from the antenna signal, which is then to be heard as an audible frequency in the headphones.This oscillator, which is to be switched to telegraphy reception (referred to as A1, telegraphy), is referred to as the "telegraphia -covered" or BFO (Beat frequency oscillator).
 
-In der Regel ist neben dem Schalter zum Aktivieren des BFO (teils als Betriebsart Telegraphie oder Tg. tonlos bezeichnet) auch ein Tonhöhenregler und bei älteren Geräten ein Pegelregler für das BFO-Signal vorhanden.
+As a rule, in addition to the switch for activating the BFO (partly referred to as operating mode of telegraphy or d.)
 
-Bei Einseitenband-Aussendungen (SSB) wird von einem AM-Signal, welches aus zwei identischen symmetrischen Seitenbändern und dem dazwischen liegenden Trägersignal besteht, nur ein Seitenband ausgestrahlt, die Leistung der Sendeendstufe kann dadurch effizienter genutzt werden, indem die für Nutzsignal und nicht Trägersignal ohne Informationswert genutzt wird.
-Um das Signal hörbar zu machen, muss anstelle des Trägersignals vom Sender im Empfänger ein Hilfsträger zugefügt werden. Für diese Funktion kommt bei einfachen SSB-Empfängern ebenfall der BFO zum Einsatz. Mit dem Tonhöhenregler muss der Abstand des Hilfsträgersignals zum empfangenen Seitenbandsignal so gewählt werden, dass die Stimem des Sprechers natürlich klingt, und weder der Brummbär brummelt noch nach Art von Mickey Mouse hochfrequent quietscht.
+In the case of a side band excerpts (SSB), only one side band is broadcast by an AM signal, which consists of two identical symmetrical side tapes and the carrier signal in between, the performance of the transmission level can be used more efficiently by the use of the user signal and non-beam signal withoutInformation value is used.
+In order to make the signal audible, an auxiliary carrier must be added to the sender in the recipient instead of the carrier signal.The BFO is also used for this function for simple SSB receivers.With the pitch controller, the distance of the auxiliary strap signal to the received side band signal must be chosen in such a way that the spokesman's stimemae sounds naturally, and neither the humming bear grumbles nor squeaks high frequency according to the type of Mickey Mouse.
 
 ---
-### Einseitenbandempfang
+### singleSideBand-receive
 Source: [ShortwaveRadio.ch](http://www.shortwaveradio.ch/doku.php?id=de:prinzip) <br>
-<img src="doc/img/grundlagen-superhet-ssb.jpg"> <br>
-In hochwertigen Empfängern ist der Einseitenbandempfang technisch aufwendiger gelöst.
+<img src="doc/img/grundlagen-superhet-ssb.jpg" width=100%> <br>
+In high-quality receivers, the singe side band receiver is more technically complex.
 
-Das empfangene einzelne Seitenband ohne Trägersignal, welches bei normaler AM-Betriebsart kaum verständlich demoduliert werden kann, wird nach Umsetzung auf die Zwischenfrequenz mit zwei schaltbaren unterschiedlichen Oszillatorfrequenzen gemischt, welche in einem fixen Abstand zur Zwischenfrequenz liegen. Mit entsprechenden spezifischen Filtern kann dann wahlweise das obere Seitenband (USB, upper sideband) oder das untere Seitenband (LSB, lower sideband) empfangen werden.
+The received individual side band without a carrier signal, which can hardly be demodulated with normal AM operating type, is mixed with two switchable different oscillator frequencies after implementation, which are at a fixed distance from the intermediate frequency.The upper side band (USB, Upper Sideband) or the lower side band (LSB, Lower Sideband) can then be received with corresponding specific filters.
 
-Mit entsprechenden schmalbandigen, auf optimale Sprachverständlichkeit dimensionierten, SSB-Filtern von 2,5 - 3,6 kHz Bandbreite, kann ein schwaches von Nachbarkanalstörungen beeinträchtigtes Signal verständlich gemacht werden.
+SSB filters of 2.5 - 3.6 kHz bandwidth, which are dimensioned for optimal speech intelligibility, a signal impaired by neighboring channel disorders can be made understandable.
+
+---
+### First Mixer 
+Source: [RFcandy](https://www.rfcandy.biz/communication/mc3362.html) <br>
+<img src="doc/img/recbasic2.gif" width=100%> <br>
