@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
-#include <TFT_eSPI.h>       // Hardware-specific library for LCD 
+#include <TFT_eSPI.h> // Hardware-specific library for LCD
 #include <SD.h>
 #include <SD_MMC.h>
 #include "soc/soc.h"
@@ -10,6 +10,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <si5351.h>
 #include <Wire.h>
+#include <CAN.h>
 
 #define PLLB_FREQ 87000000000ULL
 Si5351 si5351;
@@ -69,6 +70,12 @@ void setup()
   // Initialize serial communication at 115200 bits per second
   Serial.begin(115200);
   setupPins();
+
+  // start the CAN bus at 1 Mbps
+  if (!CAN.begin(1E6))
+  {
+    Serial.println("Starting CAN failed!");
+  }
 
   writeLineText("tests");
   testLEDs();
@@ -199,10 +206,9 @@ void loop()
   if (interrupt_encoder_executed)
   {
     Serial.println("Encoder count = " + String((int32_t)encoder.getCount() / 2) + " -> " + String((uint16_t)(encoder.getCount() / 2 * 100)));
-    //indicator.setPixelColor(0, indicator.ColorHSV((uint16_t)(encoder.getCount() / 2 * 100), 255, 100));
-    //indicator.show();
-    
-    
+    // indicator.setPixelColor(0, indicator.ColorHSV((uint16_t)(encoder.getCount() / 2 * 100), 255, 100));
+    // indicator.show();
+
     // indicator.clear();
     // indicator.show();
     interrupt_encoder_executed = false;
@@ -422,7 +428,7 @@ void loadConfiguration(const char *filename)
   // Close the file (Curiously, File's destructor doesn't close the file)
   file.close();
   Serial.println();
-  
+
   Serial.println(Band_Names[0]);
   Serial.println(Band_start_stop[0][0]);
   Serial.println(Band_start_stop[0][1]);
