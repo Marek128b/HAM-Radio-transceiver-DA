@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
+#include <TFT_eSPI.h>       // Hardware-specific library for LCD 
 #include <SD.h>
 #include <SD_MMC.h>
 #include "soc/soc.h"
