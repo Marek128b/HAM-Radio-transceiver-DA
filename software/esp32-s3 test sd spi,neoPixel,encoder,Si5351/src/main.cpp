@@ -198,7 +198,7 @@ void loop()
   }
   if (interrupt_encoder_executed)
   {
-    //Serial.println("Encoder count = " + String((int32_t)encoder.getCount() / 2) + " -> " + String((uint16_t)(encoder.getCount() / 2 * 100)));
+    Serial.println("Encoder count = " + String((int32_t)encoder.getCount() / 2) + " -> " + String((uint16_t)(encoder.getCount() / 2 * 100)));
     //indicator.setPixelColor(0, indicator.ColorHSV((uint16_t)(encoder.getCount() / 2 * 100), 255, 100));
     //indicator.show();
     
