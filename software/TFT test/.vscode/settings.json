@@ -1,0 +1,22 @@
+{
+    "cSpell.words": [
+        "Adafruit",
+        "amet",
+        "GLCD",
+        "graphicstest",
+        "mediabuttons",
+        "MOSI",
+        "platformio",
+        "SCLK",
+        "testdrawcircles",
+        "testdrawrects",
+        "testdrawtext",
+        "testfastlines",
+        "testfillcircles",
+        "testfillrects",
+        "testlines",
+        "testroundrects",
+        "testtriangles"
+    ],
+    "cSpell.language": "en,lorem"
+}
