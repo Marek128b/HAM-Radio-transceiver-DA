@@ -34,19 +34,17 @@ void setup(void)
   tft.setCursor(0, 0);
   tft.setTextColor(TFT_RED);
   tft.setTextSize(5);
-  tft.print("Counter example:");
+  tft.print("Millis example:");
 
   Serial.println("end setup");
 }
 void loop()
 {
-  static int counter = 0;
-  tft.setTextColor(TFT_RED, TFT_BLACK); //by setting the text background color you can update the text without flickering 
+  tft.setTextColor(TFT_GREEN, TFT_BLACK); //by setting the text background color you can update the text without flickering 
   tft.setTextSize(6);
   tft.setCursor(0, 40); //position at textSize * 8
-  tft.print(counter);
-  counter++;
+  tft.print(millis());
 
-  delay(10);
+  delay(10); //short delay 
   //tft.fillRect(0, 80, 480, 64, TFT_BLACK); //bad method causing noticeable flickering
 }
