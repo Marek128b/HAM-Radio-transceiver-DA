@@ -18,5 +18,6 @@
         "testroundrects",
         "testtriangles"
     ],
-    "cSpell.language": "en,lorem"
+    "cSpell.language": "en,lorem",
+    "C_Cpp.errorSquiggles": "disabled"
 }

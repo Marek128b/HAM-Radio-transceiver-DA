@@ -1,5 +1,6 @@
+// Note Display not working with ESP32 platformio version 6.7.0, only tested working in version 5.3.0
 #include <Arduino.h>
-
+#include "Free_Fonts.h"
 #include <TFT_eSPI.h> // Hardware-specific library
 #include <SPI.h>
 
@@ -29,22 +30,28 @@ void setup(void)
   // Use this initializer if you're using a 3.5" TFT 480x320
   tft.init(); // initialize a ILI9488_DRIVER chip
   tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_BLACK); // sets Background color in RGB565 format
 
-  tft.setCursor(0, 0);
-  tft.setTextColor(TFT_RED);
-  tft.setTextSize(5);
+  tft.setCursor(0, 32);
+  tft.setTextColor(TFT_PINK);
+  // tft.setTextFont(FONT2);     // sets the font of the texts
+  tft.setFreeFont(FSB24); // Select Free Serif 24 point font
+  tft.setTextSize(1);
   tft.print("Millis example:");
 
   Serial.println("end setup");
 }
 void loop()
 {
-  tft.setTextColor(TFT_GREEN, TFT_BLACK); //by setting the text background color you can update the text without flickering 
-  tft.setTextSize(6);
-  tft.setCursor(0, 40); //position at textSize * 8
-  tft.print(millis());
+  static unsigned long long mill;
 
-  delay(10); //short delay 
-  //tft.fillRect(0, 80, 480, 64, TFT_BLACK); //bad method causing noticeable flickering
+  tft.setTextColor(TFT_WHITE, TFT_BLACK); // by setting the text background color you can update the text without flickering
+  tft.setTextSize(1);
+  tft.setCursor(0, 75); // position at textSize * 8
+  // tft.drawString(String(millis()), 0, 64);
+  mill = millis();
+  tft.drawString(String(mill), 0, 75, 7); // prints the millis to position 0,75 and with the font #7 which looks good for texts
+
+ // delay(1); // short delay
+  // tft.fillRect(0, 42, 480, 46, TFT_BLUE); //bad method causing noticeable flickering
 }
