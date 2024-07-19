@@ -21,10 +21,17 @@ In this image you can see the filter response on the NanoVNA. The center frequen
 
 
 ## Measuring Crystals
-<img src="img/WhatsApp Image 2024-07-18 at 14.02.20.jpeg" width=50%>
+<img src="img/WhatsApp Image 2024-07-18 at 14.02.20.jpeg" width=50%><img src="img/WhatsApp Image 2024-07-18 at 14.02.20 (1).jpeg" width=50%>
 <br>
-This is the measuring jig that i build where you just put in the crystal and connect both coax cables to the left and right side then you measure the S21 on for example the NanoVNA (seen in the picture below). 
+This is the measuring jig that i build where you just put in the crystal and connect both coax cables to the left and right side then you measure the S21 on for example the NanoVNA (seen in the picture on the right). 
 <br>
 
 
+<img src="img/WhatsApp Image 2024-07-18 at 14.03.02-new.jpeg" width=100%>
+<br>
+Here you can see the coarsely measured crystals in the respected groups of frequency. The next step is to measure using a lower frequency span and groupe them in 100Hz increments (dFmax = BW / 100 = 270Hz). 
+<br><br>
 
+<img src="img/WhatsApp Image 2024-07-18 at 14.03.02 (1).jpeg" width=100%>
+<br>
+In this image you can see said measurements grouped in 100Hz increments. 
