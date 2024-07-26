@@ -1,5 +1,6 @@
 package com.example.ham_radio_app
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothAdapter.getDefaultAdapter
@@ -20,10 +21,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,10 +42,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.ham_radio_app.ui.theme.HAMRadioAppTheme
@@ -106,6 +115,8 @@ class MainActivity : ComponentActivity() {
         return discoveredDevices
     }
 
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+    @OptIn(ExperimentalMaterial3Api::class)
     @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -133,7 +144,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-
         setContent {
             var devices: Set<BluetoothDevice> by remember { mutableStateOf(emptySet()) }
 
@@ -142,38 +152,74 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    BluetoothMenu()
+
+                    Scaffold(topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    text = "Bluetooth Connected List",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        )
+                    }) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Button(onClick = { devices = scan() }) {
+                                Text(
+                                    text = "Scan",
+                                    style = MaterialTheme.typography.headlineMedium
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Paired Devices",
+                                style = MaterialTheme.typography.headlineLarge
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            pairedDevices.forEach { device ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    //elevation = 10.dp
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Text(text = device.name)
+                                        Text(text = device.address)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
-}
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun BluetoothMenu(modifier: Modifier = Modifier) {
-    Scaffold(topBar = {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "Bluetooth Connected List",
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
-            }
-        )
-    }) {
-        Column {
-
-        }
+    @SuppressLint("MissingPermission")
+    override fun onDestroy() {
+        super.onDestroy()
+        if  (bluetoothAdapter.isDiscovering) bluetoothAdapter.cancelDiscovery()
+        unregisterReceiver(receiver)
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     HAMRadioAppTheme {
-        BluetoothMenu()
+
     }
 }
