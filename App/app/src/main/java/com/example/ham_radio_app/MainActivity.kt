@@ -18,12 +18,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun scan(): Set<BluetoothDevice> {
         bluetoothAdapter?.let { adapter ->
             if (adapter.isDiscovering) {
@@ -73,7 +77,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
-    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -101,7 +105,8 @@ class MainActivity : ComponentActivity() {
                                 Text(
                                     text = "Bluetooth Connected List",
                                     modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         )
@@ -109,20 +114,22 @@ class MainActivity : ComponentActivity() {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(top = 20.dp),
+                                .padding(top = 70.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             if (hasPermission) {
                                 Button(onClick = { devices = scan() }) {
                                     Text(
                                         text = "Scan",
-                                        style = MaterialTheme.typography.headlineMedium
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Text(
                                     text = "Paired Devices",
-                                    style = MaterialTheme.typography.headlineLarge
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(10.dp))
                                 pairedDevices.forEach { device ->
@@ -148,7 +155,8 @@ class MainActivity : ComponentActivity() {
                                     if (granted) {
                                         bluetoothAdapter?.let { adapter ->
                                             if (!adapter.isEnabled) {
-                                                val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                                                val enableBtIntent =
+                                                    Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                                                 startActivityForResult(enableBtIntent, 1)
                                             } else {
                                                 pairedDevices = adapter.bondedDevices
@@ -182,7 +190,10 @@ class MainActivity : ComponentActivity() {
         }
 
         val allPermissionsGranted = requiredPermissions.all { permission ->
-            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(
+                context,
+                permission
+            ) == PackageManager.PERMISSION_GRANTED
         }
 
         val permissionLauncher = rememberLauncherForActivityResult(
@@ -201,6 +212,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun onDestroy() {
         super.onDestroy()
         bluetoothAdapter?.let { adapter ->
