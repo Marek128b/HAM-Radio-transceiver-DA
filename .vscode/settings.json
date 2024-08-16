@@ -1,7 +1,15 @@
 {
     "cSpell.words": [
+<<<<<<< HEAD
         "FARHADPNG",
         "Hamradio",
         "passband"
+=======
+        "Hamradio",
+        "Bandpass",
+        "Chebyshev",
+        "Fmax",
+        "neighbouring"
+>>>>>>> 1b5e6b3fefabaa77a93c9bae9c276ae7438d38d7
     ]
 }
