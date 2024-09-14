@@ -5,18 +5,18 @@
 #include <SPI.h>
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
-const int backlight_led = 26; // backlight of LCD
+const int backlight_led = 3; // backlight of LCD
 /*
-TFT_MISO = 12
-TFT_MOSI = 11
-TFT_SCLK = 13
-TFT_CS = 33
-TFT_DC = 36
-TFT_RST = 35
-TOUCH_CS = 21
+TFT_MISO = 11
+TFT_MOSI = 10
+TFT_SCLK = 9
+TFT_CS = 14
+TFT_DC = 12
+TFT_RST = 13
+TOUCH_CS = 8
 SPI_FREQUENCY = 55000000
 SPI_TOUCH_FREQUENCY = 2500000
-TFT_BL = 26
+TFT_BL = 3
 TFT_BACKLIGHT_ON = 1
 */
 
