@@ -29,17 +29,13 @@ TFT_BL = 3
 TFT_BACKLIGHT_ON = 1
 */
 
-<<<<<<< HEAD
 //calibration: 156210
-=======
-
->>>>>>> 3caf5fdd9b1538f43f80e25bbd0247fc66e9d272
 unsigned long frequency = 14000000; // in Hz
 unsigned int freqInc = 1000;
 #define IF_Freq 15995200
 #define PLLB_FREQ 87000000000ULL
 Si5351 si5351;
-int32_t freq_correction = 0; // Replace with your calculated ppm error
+int32_t freq_correction = 156210; // Replace with your calculated ppm error
 /*
 9 - SCL
 8 - SDA
