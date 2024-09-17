@@ -29,6 +29,7 @@ TFT_BL = 26
 TFT_BACKLIGHT_ON = 1
 */
 
+//calibration: 156210
 unsigned long frequency = 14000000; // in Hz
 unsigned int freqInc = 1000;
 #define IF_Freq 16000000
