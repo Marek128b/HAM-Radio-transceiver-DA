@@ -80,13 +80,13 @@ void setup()
   if (!si5351.init(SI5351_CRYSTAL_LOAD_8PF, freq_correction, SI5351_XTAL_FREQ))
   {
     Serial.println("Device not found on I2C bus!");
-    indicator.setPixelColor(0, indicator.Color(100, 0, 30));
+    indicator.setPixelColor(0, indicator.Color(30, 0, 10));
     indicator.show();
   }
   else
   {
     Serial.println("Found Si5351 on I2C bus");
-    indicator.setPixelColor(0, indicator.Color(0, 0, 30));
+    indicator.setPixelColor(0, indicator.Color(0, 0, 10));
     indicator.show();
   }
 
@@ -108,8 +108,7 @@ void setup()
   printStep(freqInc);
   printVFO_BFO(frequency);
 
-  indicator.setPixelColor(0, indicator.Color(0, 30, 30));
-  indicator.show();
+
 }
 
 // ##############################################################################################################################
@@ -146,7 +145,6 @@ void loop()
     }
 
     printStep(freqInc);
-    printVFO_BFO(frequency);
     interrupt_encoder_switch_executed = false;
   }
 
@@ -184,7 +182,7 @@ void loop()
   // Set CLK0 to output 2MHz
   Serial.println("SI5351_CLK0 = 16MHz - 14MHz");
   si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
-  si5351.set_freq_manual(IF_Freq * 100 - (frequency * 100), PLLB_FREQ, SI5351_CLK0);
+  si5351.set_freq_manual((frequency * 100) + IF_Freq * 100, PLLB_FREQ, SI5351_CLK0);
 
   // Set CLK2 to hear Signal
   Serial.println("SI5351_CLK2 = 16MHz - 2.7kHz");
@@ -205,7 +203,7 @@ void printFreq(unsigned long frequency)
   tft.setFreeFont(FF8);
   tft.setTextSize(1);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "%.2f kHz", (float)frequency / 1000);
+  snprintf(strBuffer, sizeof(strBuffer), "%.2fkHz", (float)frequency / 1000);
   tft.drawString(strBuffer, 0, 74, 8); // prints the millis to position 0,74 with font 7 (not supporting text)
 }
 
@@ -216,7 +214,7 @@ void printStep(unsigned int freqInc)
   tft.setFreeFont(FF8);
   tft.setTextSize(1);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "step: %d Hz  ", freqInc);
+  snprintf(strBuffer, sizeof(strBuffer), "step: %dHz  ", freqInc);
   tft.drawString(strBuffer, 0, 170); // prints the millis to position 0,99 74+24*2*2
 }
 
@@ -226,16 +224,16 @@ void printVFO_BFO(unsigned long frequency)
   tft.setFreeFont(FF8);
   tft.setTextSize(1);
 
-  float vfo_freq = ((float)IF_Freq - (float)frequency) / (float)1000000;
+  float vfo_freq = ((float)(frequency * 100) + (float)(IF_Freq * 100)) / (float)100000000;
 
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "VFO: %.5f MHz  ", vfo_freq);
+  snprintf(strBuffer, sizeof(strBuffer), "VFO: %.5fMHz  ", vfo_freq);
   tft.drawString(strBuffer, 0, 218); // prints the millis to position 0,99 170+2*24
 
   float bfo_freq = ((float)IF_Freq - (float)2700) / (float)1000000;
 
   tft.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
-  snprintf(strBuffer, sizeof(strBuffer), "BFO: %.4f MHz  ", bfo_freq);
+  snprintf(strBuffer, sizeof(strBuffer), "BFO: %.4fMHz  ", bfo_freq);
   tft.drawString(strBuffer, 0, 266); // prints the millis to position 0,99 218+24*2
 }
 
