@@ -1,0 +1,23 @@
+7MHZ:
+-6dB insersion loss
+F1 = 5.5MHz
+F2 = 8.5MHz
+dF = 3MHz
+
+14MHz:
+-6dB insersion loss
+F1 = 10.8MHz
+F2 = 16.7MHz
+dF = 6MHz
+
+21MHz:
+-6dB insersion loss
+F1 = 16.6MHz
+F2 = 25.6MHz
+dF = 9MHz
+
+28MHz:
+-6dB insersion loss
+F1 = 21.6MHz
+F2 = 33.5MHz
+dF = 11.8MHz
