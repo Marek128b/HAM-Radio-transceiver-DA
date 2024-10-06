@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Stylesheet generator :: FunkY Documentation</title>
+    <link>http://localhost:1313/basics/generator/index.html</link>
+    <description>This interactive tool may help you to generate your own color variant stylesheet.&#xA;Show usage instructions To get started, first select a color variant from the variant selector in the lower left sidebar that fits you best as a starting point.&#xA;The graph is interactive and reflect the current colors. You can click on any of the colored boxes to adjust the respective color. The graph and the page will update accordingly.</description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <atom:link href="http://localhost:1313/basics/generator/index.xml" rel="self" type="application/rss+xml" />
+  </channel>
+</rss>
