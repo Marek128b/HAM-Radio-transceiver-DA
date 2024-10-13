@@ -2,3 +2,63 @@ baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = 'FunkY Documentation'
 theme = "hugo-theme-relearn"
+
+[params]
+  additionalContentLanguage = ['en']
+  alwaysopen = ''
+  breadcrumbSeparator = '>'
+  collapsibleMenu = true
+  customMathJaxURL = ''
+  customMermaidURL = ''
+  customOpenapiURL = ''
+  disableAnchorCopy = false
+  disableAnchorScrolling = false
+  disableAssetsBusting = false
+  disableBreadcrumb = false
+  disableDefaultRelref = false
+  disableExplicitIndexURLs = false
+  disableGeneratorVersion = true 
+  disableHoverBlockCopyToClipBoard = false
+  disableInlineCopyToClipBoard = true
+  disableLandingPageButton = false
+  disableLanguageSwitchingButton = false
+  disableMathJax = true
+  disableMermaid = false
+  disableNextPrev = false
+  disableOpenapi = true
+  disableRandomIds = false
+  disableRootBreadcrumb = true
+  disableSearch = false
+  disableSearchHiddenPages = false
+  disableSeoHiddenPages = true
+  disableShortcutsTitle = false
+  disableTagHiddenPages = false
+  disableTermBreadcrumbs = false
+  disableToc = false
+  editURL = ''
+  externalLinkTarget = '_self'
+  highlightWrap = true
+  images = ['images/hero.png']
+  mathJaxInitialize = '{}'
+  mermaidInitialize = '{ "securityLevel": "loose" }'
+  mermaidZoom = true
+  ordersectionsby = 'weight'
+  showVisitedLinks = false
+  titleSeparator = '::'
+
+
+themeVariant = [
+	{ identifier = "relearn-auto",  name = "Relearn Light/Dark", auto = [] },
+	{ identifier = "relearn-light"  },
+	{ identifier = "relearn-dark"   },
+	{ identifier = "relearn-bright" },
+	{ identifier = "zen-auto",      name = "Zen Light/Dark", auto = [ "zen-light", "zen-dark" ] },
+	{ identifier = "zen-light"      },
+	{ identifier = "zen-dark"       },
+	{ identifier = "retro-auto",    name = "Retro Learn/Neon", auto = [ "learn", "neon" ] },
+	{ identifier = "neon"           },
+	{ identifier = "learn"          },
+	{ identifier = "blue"           },
+	{ identifier = "green"          },
+	{ identifier = "red"            }
+]
