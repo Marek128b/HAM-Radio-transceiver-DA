@@ -2,7 +2,9 @@ name: New Feature
 description: Have a new feature. post it here.
 title: "New Feature"
 labels: ["type:feature"]
-projects: ["Marek128b's DA Amateure Radio"]
+projects: ["Marek128b/9"]
+assignees:
+  - assign_yourself
 body:
   - type: markdown
     attributes:
