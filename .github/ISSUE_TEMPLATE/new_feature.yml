@@ -1,0 +1,28 @@
+name: New Feature
+description: Have a new feature. post it here.
+title: "New Feature"
+labels: ["type:feature"]
+projects: ["Marek128b's DA Amateure Radio"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this new Feature!
+  - type: textarea
+    id: want-to-implement
+    attributes:
+      label: What do you want to implement?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you want to implement!
+      value: "I want to implement ..."
+    validations:
+      required: true
+  - type: textarea
+    id: why-to-implement
+    attributes:
+      label: Why do you want to implement this?
+      description: Also tell us, how this makes the project better.
+      placeholder: Tell us why you want to implement this!
+      value: "I want to implement this feature because ..."
+    validations:
+      required: true
