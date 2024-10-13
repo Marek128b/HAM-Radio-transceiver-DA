@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="nB85MIhoOBPVZY82rxV1" name="Page-1">
-        <mxGraphModel dx="1766" dy="1147" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+        <mxGraphModel dx="1045" dy="708" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -255,7 +255,7 @@
                 <mxCell id="38" value="Microphone" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
                     <mxGeometry x="610" y="639" width="120" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="46" value="" style="edgeStyle=none;rounded=0;html=1;startArrow=none;startFill=0;endArrow=classic;endFill=1;" parent="1" source="39" target="45" edge="1">
+                <mxCell id="46" value="" style="edgeStyle=none;rounded=0;html=1;startArrow=classic;startFill=1;endArrow=none;endFill=0;" parent="1" source="39" target="45" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="39" value="Speaker" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=1;fillColor=#fff2cc;strokeColor=#d6b656;" parent="1" vertex="1">
