@@ -1,4 +1,4 @@
-package com.example.myapplication.presentation.components
+package com.plcoding.bluetoothchat.presentation.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,7 +18,9 @@ import com.example.myapplication.presentation.BluetoothUiState
 fun DeviceScreen(
     state: BluetoothUiState,
     onStartScan: () -> Unit,
-    onStopScan: () -> Unit
+    onStopScan: () -> Unit,
+    onStartServer: () -> Unit,
+    onDeviceClick: (BluetoothDevice) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -27,7 +29,7 @@ fun DeviceScreen(
         BluetoothDeviceList(
             pairedDevices = state.pairedDevices,
             scannedDevices = state.scannedDevices,
-            onClick = {},
+            onClick = onDeviceClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -42,14 +44,17 @@ fun DeviceScreen(
             Button(onClick = onStopScan) {
                 Text(text = "Stop scan")
             }
+            Button(onClick = onStartServer) {
+                Text(text = "Start server")
+            }
         }
     }
 }
 
 @Composable
 fun BluetoothDeviceList(
-    pairedDevices: List<com.example.myapplication.domain.chat.BluetoothDevice>,
-    scannedDevices: List<com.example.myapplication.domain.chat.BluetoothDevice>,
+    pairedDevices: List<BluetoothDevice>,
+    scannedDevices: List<BluetoothDevice>,
     onClick: (BluetoothDevice) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -70,7 +75,7 @@ fun BluetoothDeviceList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onClick(device) }
-                    .padding(16.dp)
+                    .padding(10.dp)
             )
         }
 
@@ -88,7 +93,7 @@ fun BluetoothDeviceList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onClick(device) }
-                    .padding(16.dp)
+                    .padding(10.dp)
             )
         }
     }

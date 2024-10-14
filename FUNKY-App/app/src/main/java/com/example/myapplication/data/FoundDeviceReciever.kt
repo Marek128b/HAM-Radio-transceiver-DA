@@ -1,10 +1,10 @@
-package com.example.myapplication.data
+package com.plcoding.bluetoothchat.data.chat
 
+import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.bluetooth.BluetoothDevice
 
 class FoundDeviceReceiver(
     private val onDeviceFound: (BluetoothDevice) -> Unit
