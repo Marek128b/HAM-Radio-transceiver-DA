@@ -10,7 +10,6 @@ import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import com.example.myapplication.data.FoundDeviceReceiver
 import com.example.myapplication.data.toBluetoothDeviceDomain
 import com.example.myapplication.domain.chat.BluetoothController
 import com.example.myapplication.domain.chat.BluetoothDeviceDomain
