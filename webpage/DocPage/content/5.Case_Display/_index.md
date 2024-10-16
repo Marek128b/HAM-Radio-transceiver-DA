@@ -1,7 +1,7 @@
 +++
 archetype = "chapter"
-title = "Case"
-weight = 1
+title = "Case_Display"
+weight = 5
 +++
 
 This is a new chapter.

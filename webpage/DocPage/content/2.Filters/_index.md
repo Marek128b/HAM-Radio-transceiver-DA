@@ -1,7 +1,7 @@
 +++
 archetype = "chapter"
-title = "Hardware"
-weight = 1
+title = "Filters"
+weight = 2
 +++
 
 This is a new chapter.
