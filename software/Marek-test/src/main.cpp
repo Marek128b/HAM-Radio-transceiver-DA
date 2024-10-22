@@ -14,10 +14,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.2
+// FIRMWARE VERSION v0.0.3
 // #########################################
 
-String FW_version = "v0.0.2";
+String FW_version = "v0.0.3";
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
 const int backlight_led = 46; // backlight of LCD
@@ -187,7 +187,7 @@ void loop()
 
     printFreq(frequency);
     printVFO_BFO(frequency);
-    // updateFrequencies(frequency);
+    updateFrequencies(frequency);
 
     interrupt_encoder_executed = false;
   }
@@ -263,12 +263,12 @@ void updateFrequencies(unsigned long frequency)
   // Set CLK0 to output VFO
   // si5351.set_ms_source(SI5351_CLK0, SI5351_PLLA);
   // si5351.output_enable(SI5351_CLK0, 1);
-  si5351.set_freq(1000000000ULL, SI5351_CLK0); // VFO (frequency * 100) + (IF_Freq * 100)
+  si5351.set_freq((frequency * 100) + (IF_Freq * 100), SI5351_CLK0); // VFO (frequency * 100) + (IF_Freq * 100)
 
   // Set CLK2 to hear Signal
   // si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
   // si5351.output_enable(SI5351_CLK2, 1);
-  si5351.set_freq(3000000000ULL, SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
+  si5351.set_freq((IF_Freq * 100) + (2700 * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
 
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
