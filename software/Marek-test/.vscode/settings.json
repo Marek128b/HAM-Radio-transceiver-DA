@@ -3,6 +3,7 @@
         "Adafruit",
         "IRAM",
         "NUMPIXELS",
+        "PLLA",
         "PLLB",
         "SCLK",
         "XTAL"
