@@ -33,14 +33,14 @@ TFT_BL = 46
 TFT_BACKLIGHT_ON = 1
 */
 
-// calibration: 156210
+// calibration: 155989 on 22.10.2024
 unsigned long frequency = 14000000; // in Hz
 unsigned int freqInc = 1000;
 #define IF_Freq 15995200
 #define PLLB_FREQ 87000000000ULL
 #define PLLA_FREQ 87000000000ULL
 Si5351 si5351;
-int32_t freq_correction = 156210; // Replace with your calculated ppm error
+int32_t freq_correction = 155989; // Replace with your calculated ppm error
 /*
 9 - SCL
 8 - SDA
@@ -92,6 +92,9 @@ void setup()
   else
   {
     Serial.println("Found Si5351 on I2C bus"); // if the si5351 ic is found set the drive strength for both CLK0 and CLK2
+    si5351.set_correction(freq_correction, SI5351_PLL_INPUT_XO);
+    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA); //sets the pll A
+    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLB); //sets the pll B
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
     indicator.setPixelColor(0, indicator.Color(0, 0, 10));
@@ -189,14 +192,14 @@ void loop()
   }
 
   // Set CLK0 to output 2MHz
-  // si5351.set_ms_source(SI5351_CLK0, SI5351_PLLA);
+  //si5351.set_ms_source(SI5351_CLK0, SI5351_PLLA);
   si5351.output_enable(SI5351_CLK0, 1);
-  si5351.set_freq((frequency * 100) + (IF_Freq * 100), SI5351_CLK0); // VFO
+  si5351.set_freq(1000000000ULL, SI5351_CLK0); // VFO (frequency * 100) + (IF_Freq * 100)
 
   // Set CLK2 to hear Signal
-  // si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
+  //si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
   si5351.output_enable(SI5351_CLK2, 1);
-  si5351.set_freq((IF_Freq * 100) + (2700 * 100), SI5351_CLK2); // BFO
+  si5351.set_freq(3000000000ULL, SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
 
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
