@@ -14,8 +14,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.1
+// FIRMWARE VERSION v0.0.2
 // #########################################
+
+String FW_version = "v0.0.2";
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
 const int backlight_led = 46; // backlight of LCD
@@ -37,8 +39,6 @@ TFT_BACKLIGHT_ON = 1
 unsigned long frequency = 14000000; // in Hz
 unsigned int freqInc = 1000;
 #define IF_Freq 15995200
-#define PLLB_FREQ 87000000000ULL
-#define PLLA_FREQ 87000000000ULL
 Si5351 si5351;
 int32_t freq_correction = 155989; // Replace with your calculated ppm error
 /*
@@ -66,6 +66,7 @@ IRAM_ATTR void encSW_ISR();
 void printFreq(unsigned long frequency);
 void printStep(unsigned int freqInc);
 void printVFO_BFO(unsigned long frequency);
+void updateFrequencies(unsigned long frequency);
 // ##############################################################################################################################
 
 void setup()
@@ -83,7 +84,7 @@ void setup()
   tft.fillScreen(TFT_BLACK); // sets Background color in RGB565 format
 
   // error correction = frequency error / wanted frequency
-  if (!si5351.init(SI5351_CRYSTAL_LOAD_8PF, freq_correction, SI5351_XTAL_FREQ))
+  if (!si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, 0))
   {
     Serial.println("Device not found on I2C bus!");
     indicator.setPixelColor(0, indicator.Color(30, 0, 10));
@@ -93,8 +94,7 @@ void setup()
   {
     Serial.println("Found Si5351 on I2C bus"); // if the si5351 ic is found set the drive strength for both CLK0 and CLK2
     si5351.set_correction(freq_correction, SI5351_PLL_INPUT_XO);
-    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA); //sets the pll A
-    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLB); //sets the pll B
+    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA); // sets the pll A
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
     indicator.setPixelColor(0, indicator.Color(0, 0, 10));
@@ -112,10 +112,10 @@ void setup()
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "Marek 20m VFO  v0.0.1");
-  tft.drawString(strBuffer, 0, 0); // prints the millis to position 0,0 and with the font #7 which looks good for texts
-  // prints the frequency to the display
-  printFreq(frequency);
+  snprintf(strBuffer, sizeof(strBuffer), "Marek 20m VFO  %s", FW_version); //prints the heading with the current firmware version 
+  tft.drawString(strBuffer, 0, 0); // prints the millis to position 0,0 and with the font #7 which looks good for text
+  updateFrequencies(frequency);
+  printFreq(frequency); // prints the frequency to the display
   printStep(freqInc);
   printVFO_BFO(frequency);
 }
@@ -187,23 +187,10 @@ void loop()
 
     printFreq(frequency);
     printVFO_BFO(frequency);
+    // updateFrequencies(frequency);
 
     interrupt_encoder_executed = false;
   }
-
-  // Set CLK0 to output 2MHz
-  //si5351.set_ms_source(SI5351_CLK0, SI5351_PLLA);
-  si5351.output_enable(SI5351_CLK0, 1);
-  si5351.set_freq(1000000000ULL, SI5351_CLK0); // VFO (frequency * 100) + (IF_Freq * 100)
-
-  // Set CLK2 to hear Signal
-  //si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
-  si5351.output_enable(SI5351_CLK2, 1);
-  si5351.set_freq(3000000000ULL, SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
-
-  // Query a status update and wait a bit to let the Si5351 populate the
-  // status flags correctly.
-  si5351.update_status();
 }
 
 // ##############################################################################################################################
@@ -269,4 +256,21 @@ IRAM_ATTR void encSW_ISR()
     interrupt_encoder_switch_executed = true;
     last_encoder_switch_time = encoder_switch_time;
   }
+}
+
+void updateFrequencies(unsigned long frequency)
+{
+  // Set CLK0 to output VFO
+  // si5351.set_ms_source(SI5351_CLK0, SI5351_PLLA);
+  // si5351.output_enable(SI5351_CLK0, 1);
+  si5351.set_freq(1000000000ULL, SI5351_CLK0); // VFO (frequency * 100) + (IF_Freq * 100)
+
+  // Set CLK2 to hear Signal
+  // si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
+  // si5351.output_enable(SI5351_CLK2, 1);
+  si5351.set_freq(3000000000ULL, SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
+
+  // Query a status update and wait a bit to let the Si5351 populate the
+  // status flags correctly.
+  si5351.update_status();
 }
