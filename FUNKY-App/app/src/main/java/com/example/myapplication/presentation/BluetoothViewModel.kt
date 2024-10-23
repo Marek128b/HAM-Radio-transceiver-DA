@@ -7,15 +7,7 @@ import com.example.myapplication.domain.chat.BluetoothDeviceDomain
 import com.example.myapplication.domain.chat.ConnectionResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
 @HiltViewModel
@@ -56,8 +48,7 @@ class BluetoothViewModel @Inject constructor(
             .listen()
     }
 
-
-    fun disconnectFromDevice(){
+    fun disconnectFromDevice() {
         deviceConnectionJob?.cancel()
         bluetoothController.closeConnection()
         _state.update { it.copy(
@@ -114,5 +105,4 @@ class BluetoothViewModel @Inject constructor(
         super.onCleared()
         bluetoothController.release()
     }
-
 }

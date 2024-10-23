@@ -24,7 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.myapplication.ui.theme.MyApplicationTheme
-import com.plcoding.bluetoothchat.presentation.components.DeviceScreen
+import com.example.myapplication.presentation.components.DeviceScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -50,18 +50,18 @@ class MainActivity : ComponentActivity() {
         val permissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { perms ->
-            val canEnableBluetooth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val canEnableBluetooth = if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 perms[Manifest.permission.BLUETOOTH_CONNECT] == true
             } else true
 
-            if (canEnableBluetooth && !isBluetoothEnabled) {
+            if(canEnableBluetooth && !isBluetoothEnabled) {
                 enableBluetoothLauncher.launch(
                     Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 )
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.BLUETOOTH_SCAN,
@@ -86,7 +86,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(key1 = state.isConnected) {
-                    if (state.isConnected) {
+                    if(state.isConnected) {
                         Toast.makeText(
                             applicationContext,
                             "You're connected!",
@@ -109,7 +109,6 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Connecting...")
                             }
                         }
-
                         else -> {
                             DeviceScreen(
                                 state = state,

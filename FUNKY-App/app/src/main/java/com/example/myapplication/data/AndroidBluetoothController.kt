@@ -1,4 +1,4 @@
-package com.plcoding.bluetoothchat.data.chat
+package com.example.myapplication.data
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -10,10 +10,10 @@ import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import com.example.myapplication.data.toBluetoothDeviceDomain
 import com.example.myapplication.domain.chat.BluetoothController
 import com.example.myapplication.domain.chat.BluetoothDeviceDomain
 import com.example.myapplication.domain.chat.ConnectionResult
+import com.plcoding.bluetoothchat.data.chat.BluetoothStateReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*

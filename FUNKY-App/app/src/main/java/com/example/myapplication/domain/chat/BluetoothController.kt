@@ -5,9 +5,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 interface BluetoothController {
+    val isConnected: StateFlow<Boolean>
     val scannedDevices: StateFlow<List<BluetoothDevice>>
     val pairedDevices: StateFlow<List<BluetoothDevice>>
-    val isConnected: StateFlow<Boolean>
     val errors: SharedFlow<String>
 
     fun startDiscovery()
