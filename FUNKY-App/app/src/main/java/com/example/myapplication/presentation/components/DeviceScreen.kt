@@ -117,6 +117,7 @@ fun BluetoothDeviceList(
                                 .padding(5.dp)
                                 .clip(RoundedCornerShape(15.dp))
                                 .background(Color(0x0AFFFFFF))
+                                .clickable { onClick(device) }
                         ) {
                             Column {
                                 Text(
@@ -124,7 +125,6 @@ fun BluetoothDeviceList(
                                     color = Color.White,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { onClick(device) }
                                         .padding(16.dp,10.dp,16.dp,0.dp)
                                 )
                                 Text(
