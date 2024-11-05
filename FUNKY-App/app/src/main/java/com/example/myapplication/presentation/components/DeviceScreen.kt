@@ -228,7 +228,7 @@ fun BluetoothDeviceList(
                     )
 
                     scannedDevices.forEach { device ->
-                        if (device.name != "(No name)") {
+                        if (device.name != null) {
                             Box(
                                 modifier = Modifier
                                     .padding(5.dp)
@@ -253,7 +253,6 @@ fun BluetoothDeviceList(
                                             .padding(16.dp, 0.dp, 16.dp, 10.dp)
                                     )
                                 }
-
                             }
                         }
                     }
