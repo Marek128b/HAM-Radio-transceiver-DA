@@ -9,17 +9,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,8 +49,11 @@ fun DeviceScreen(
     onDeviceClick: (BluetoothDevice) -> Unit
 ) {
 
+    var buttonState by remember { mutableStateOf(true) }
+    var buttonColorState by remember { mutableStateOf(Color(0xFF1F8B2F)) }
+
     val gradientBrush = Brush.linearGradient(
-        colors = listOf(Color(0xFF0F2459), Color(0xFFB7145A)),
+        colors = listOf(Color(0xFF0F2459), Color(0xFF4B42CC)),
         start = androidx.compose.ui.geometry.Offset(0f, 0f),
         end = androidx.compose.ui.geometry.Offset(1500f, 1500f)
     )
@@ -53,29 +67,69 @@ fun DeviceScreen(
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround
-            ) {
-                Button(onClick = onStartScan) {
-                    Text(text = "Start scan")
-                }
-                Button(onClick = onStopScan) {
-                    Text(text = "Stop scan")
-                }
-                Button(onClick = onStartServer) {
-                    Text(text = "Start server")
-                }
-            }
+
+            //Screen
             BluetoothDeviceList(
                 pairedDevices = state.pairedDevices,
                 scannedDevices = state.scannedDevices,
                 onClick = onDeviceClick,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .weight(1f)
             )
 
+        }
+
+        //Buttons
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.Bottom
+        ) {
+
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(buttonColorState, shape = RoundedCornerShape(100))
+                    .clickable {
+                        if (buttonState) {
+                            onStartScan()
+                            buttonState = false
+                            buttonColorState = Color(0xFF9F2E30)
+                        } else {
+                            onStopScan()
+                            buttonState = true
+                            buttonColorState = Color(0xFF1F8B2F)
+                        }
+                    }
+            ) {
+
+                Icon(
+                    Icons.Rounded.Search,
+                    null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp, 20.dp, 30.dp, 30.dp)
+                        .graphicsLayer { scaleX = -1f },
+                    tint = Color.White
+                )
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(40.dp, 40.dp, 10.dp, 10.dp),
+                    tint = Color.White
+                )
+            }
+
+            /*
+            Button(onClick = onStartServer) {
+                Text(text = "Start server")
+            }
+            */
         }
     }
 }
@@ -91,9 +145,15 @@ fun BluetoothDeviceList(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .padding(20.dp, 0.dp, 20.dp, 0.dp)
     ) {
-        // Paired Devices Abschnitt
+        // Spacer für Abstand zwischen den Boxen
+        item {
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        // ------------------------------------------------------- Paired Devices Abschnitt -------------------------------------------------------
+
         item {
             Box(
                 modifier = Modifier
@@ -125,7 +185,7 @@ fun BluetoothDeviceList(
                                     color = Color.White,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp,10.dp,16.dp,0.dp)
+                                        .padding(16.dp, 10.dp, 16.dp, 0.dp)
                                 )
                                 Text(
                                     text = device.address,
@@ -133,8 +193,10 @@ fun BluetoothDeviceList(
                                     color = Color.White,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp,0.dp,16.dp,10.dp)
+                                        .padding(16.dp, 0.dp, 16.dp, 10.dp)
                                 )
+
+
                             }
                         }
                     }
@@ -147,7 +209,7 @@ fun BluetoothDeviceList(
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        // Scanned Devices Abschnitt
+        // ------------------------------------------------------- Scanned Devices Abschnitt -------------------------------------------------------
         item {
             Box(
                 modifier = Modifier
@@ -166,27 +228,46 @@ fun BluetoothDeviceList(
                     )
 
                     scannedDevices.forEach { device ->
-                        Box(
-                            modifier = Modifier
-                                .padding(5.dp)
-                                .clip(RoundedCornerShape(15.dp))
-                                .background(Color(0x0AFFFFFF))
-                        ) {
-                            Text(
-                                text = device.name ?: "(No name)",
-                                color = Color.White,
+                        if (device.name != "(No name)") {
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
+                                    .padding(5.dp)
+                                    .clip(RoundedCornerShape(15.dp))
+                                    .background(Color(0x0AFFFFFF))
                                     .clickable { onClick(device) }
-                                    .padding(16.dp)
-                            )
+                            ) {
+                                Column {
+                                    Text(
+                                        text = device.name ?: "(No name)",
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp, 10.dp, 16.dp, 0.dp)
+                                    )
+                                    Text(
+                                        text = device.address,
+                                        fontSize = 10.sp,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp, 0.dp, 16.dp, 10.dp)
+                                    )
+                                }
+
+                            }
                         }
                     }
                 }
             }
         }
+
+        // Spacer für Abstand zwischen den Boxen
+        item {
+            Spacer(modifier = Modifier.height(20.dp))
+        }
     }
 }
+
 
 /*
 @Composable
