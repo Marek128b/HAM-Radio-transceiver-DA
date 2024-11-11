@@ -29,7 +29,7 @@ int32_t cal_factor = 0;
 int32_t old_cal = 0;
 
 uint64_t rx_freq;
-uint64_t target_freq = 1000000000ULL; // 10 MHz, in hundredths of hertz
+uint64_t target_freq = 3000000000ULL; // 30 MHz, in hundredths of hertz
 
 
 //#######################################################################################################################################
@@ -51,6 +51,7 @@ void setup()
   si5351.set_correction(cal_factor, SI5351_PLL_INPUT_XO);
   si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
   si5351.set_freq(target_freq, SI5351_CLK0);
+  si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
   Serial.println("Setup");
 }
 
