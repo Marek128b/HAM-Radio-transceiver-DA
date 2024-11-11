@@ -23,8 +23,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.example.myapplication.presentation.components.ChatScreen
 import com.example.myapplication.presentation.components.DeviceScreen
+import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.plcoding.bluetoothchat.presentation.BluetoothViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -71,7 +73,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MyApplicationTheme {
+            MyApplicationTheme() {
                 val viewModel = hiltViewModel<BluetoothViewModel>()
                 val state by viewModel.state.collectAsState()
 
@@ -108,6 +110,13 @@ class MainActivity : ComponentActivity() {
                                 CircularProgressIndicator()
                                 Text(text = "Connecting...")
                             }
+                        }
+                        state.isConnected -> {
+                            ChatScreen(
+                                state = state,
+                                onDisconnect = viewModel::disconnectFromDevice,
+                                onSendMessage = viewModel::sendMessage
+                            )
                         }
                         else -> {
                             DeviceScreen(

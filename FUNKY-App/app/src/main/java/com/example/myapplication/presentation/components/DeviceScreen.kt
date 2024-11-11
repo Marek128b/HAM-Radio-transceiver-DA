@@ -125,11 +125,9 @@ fun DeviceScreen(
                 )
             }
 
-            /*
             Button(onClick = onStartServer) {
                 Text(text = "Start server")
             }
-            */
         }
     }
 }
@@ -154,23 +152,37 @@ fun BluetoothDeviceList(
 
         // ------------------------------------------------------- Paired Devices Abschnitt -------------------------------------------------------
 
-        item {
+        item   {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color(0x1AFFFFFF))
-                    .padding(10.dp)
+                    .padding(10.dp),
             ) {
                 Column {
-                    Text(
-                        text = "Paired Devices",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        modifier = Modifier.padding(16.dp),
-                        color = Color.White
+
+                    //Paired Devices anzeige
+                    Box(modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Paired Devices",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            modifier = Modifier.padding(16.dp),
+                            color = Color.White
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(20.dp, 0.dp, 20.dp, 20.dp)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF199A40))
+                            .height(5.dp)
                     )
 
+                    //bluetooh paired devices
                     pairedDevices.forEach { device ->
                         Box(
                             modifier = Modifier
@@ -195,8 +207,6 @@ fun BluetoothDeviceList(
                                         .fillMaxWidth()
                                         .padding(16.dp, 0.dp, 16.dp, 10.dp)
                                 )
-
-
                             }
                         }
                     }
@@ -219,12 +229,25 @@ fun BluetoothDeviceList(
                     .padding(10.dp)
             ) {
                 Column {
-                    Text(
-                        text = "Scanned Devices",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        modifier = Modifier.padding(16.dp),
-                        color = Color.White
+
+                    //Scanned Devices anzeige
+                    Box(modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Scanned Devices",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            modifier = Modifier.padding(16.dp),
+                            color = Color.White
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(20.dp, 0.dp, 20.dp, 20.dp)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF9A1919))
+                            .height(5.dp)
                     )
 
                     scannedDevices.forEach { device ->
