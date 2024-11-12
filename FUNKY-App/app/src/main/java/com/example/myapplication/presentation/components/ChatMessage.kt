@@ -32,18 +32,18 @@ fun ChatMessage(
                 )
             )
             .background(
-                if (message.isFromLocalUser) Color.Green else Color.Blue
+                if (message.isFromLocalUser) Color(0xFF16233B) else Color(0xFF163F1C)
             )
             .padding(16.dp)
     ) {
         Text(
             text = message.senderName,
             fontSize = 10.sp,
-            color = Color.Black
+            color = Color.White
         )
         Text(
             text = message.message,
-            color = Color.Black,
+            color = Color.White,
             modifier = Modifier.widthIn(max = 250.dp)
         )
     }
