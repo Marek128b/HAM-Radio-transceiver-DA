@@ -95,8 +95,8 @@ void setup()
     Serial.println("Found Si5351 on I2C bus"); // if the si5351 ic is found set the drive strength for both CLK0 and CLK2
     si5351.set_correction(freq_correction, SI5351_PLL_INPUT_XO);
     si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA); // sets the pll A
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
-    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_8MA);
+    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); //VFO 
+    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_6MA); //BFO
     indicator.setPixelColor(0, indicator.Color(0, 0, 10));
     indicator.show();
   }
