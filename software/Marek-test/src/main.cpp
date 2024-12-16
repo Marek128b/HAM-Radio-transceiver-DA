@@ -9,15 +9,16 @@
 #include "soc/soc.h"
 #include "soc/sdmmc_reg.h"
 #include <ESP32Encoder.h>
+#include <addressable7segment.h>
 #include <Adafruit_NeoPixel.h>
 #include <si5351.h>
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.3
+// FIRMWARE VERSION v0.0.4
 // #########################################
 
-String FW_version = "v0.0.3";
+String FW_version = "v0.0.4";
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
 const int backlight_led = 46; // backlight of LCD
@@ -50,6 +51,8 @@ int32_t freq_correction = 155989; // Replace with your calculated ppm error
 #define NUMPIXELS 1 // How many NeoPixels there are in a strip
 Adafruit_NeoPixel indicator(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
+addressableSegment oneWireDisplay(48, 7); // on pin 48, 7 Segments
+
 // init  Encoder object and pins
 static IRAM_ATTR void enc_cb(void *arg);
 ESP32Encoder encoder(true, enc_cb);
@@ -74,6 +77,8 @@ void setup()
   Serial.begin(115200);
   pinMode(backlight_led, OUTPUT);
   analogWrite(backlight_led, 255);
+  oneWireDisplay.begin();
+  oneWireDisplay.printDouble(0, 1, 0, 100); // Double, amount of digits after comma, starting pos, brightness
 
   indicator.setPixelColor(0, indicator.Color(0, 30, 0));
   indicator.show();
@@ -94,9 +99,9 @@ void setup()
   {
     Serial.println("Found Si5351 on I2C bus"); // if the si5351 ic is found set the drive strength for both CLK0 and CLK2
     si5351.set_correction(freq_correction, SI5351_PLL_INPUT_XO);
-    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA); // sets the pll A
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); //VFO 
-    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_6MA); //BFO
+    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);        // sets the pll A
+    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); // VFO
+    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_6MA); // BFO
     indicator.setPixelColor(0, indicator.Color(0, 0, 10));
     indicator.show();
   }
@@ -112,8 +117,8 @@ void setup()
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "Marek 20m VFO  %s", FW_version); //prints the heading with the current firmware version 
-  tft.drawString(strBuffer, 0, 0); // prints the millis to position 0,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "Marek 20m VFO  %s", FW_version); // prints the heading with the current firmware version
+  tft.drawString(strBuffer, 0, 0);                                         // prints the millis to position 0,0 and with the font #7 which looks good for text
   updateFrequencies(frequency);
   printFreq(frequency); // prints the frequency to the display
   printStep(freqInc);
@@ -273,4 +278,7 @@ void updateFrequencies(unsigned long frequency)
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
   si5351.update_status();
+
+  // Print Frequency: 14 350 000
+  oneWireDisplay.printDouble((double)(frequency / 1000), 1, 0, 100); // Double, amount of digits after comma, starting pos, brightness
 }
