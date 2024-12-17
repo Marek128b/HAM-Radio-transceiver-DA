@@ -64,9 +64,15 @@ long lastEncoderVal = 0;
 bool interrupt_encoder_executed = false;
 bool interrupt_encoder_switch_executed = false;
 
+#define Ptt_btn 4
+#define RXTX_switch_pin 5
+bool rxtx_status = 1;
+
 // ##############################################################################################################################
 static IRAM_ATTR void enc_cb(void *arg);
 IRAM_ATTR void encSW_ISR();
+IRAM_ATTR void rxtx_switch();
+void printRxTxState();
 void printFreq(unsigned long frequency);
 void printStep(unsigned int freqInc);
 void printVFO_BFO(unsigned long frequency);
@@ -113,13 +119,19 @@ void setup()
 
   attachInterrupt(encSW, encSW_ISR, FALLING);
 
+  // Ptt button and switch
+  pinMode(Ptt_btn, INPUT_PULLUP);
+  attachInterrupt(Ptt_btn, rxtx_switch, CHANGE);
+  pinMode(RXTX_switch_pin, OUTPUT);
+
   tft.setTextColor(tft.color565(77, 238, 234), TFT_BLACK); // by setting the text background color you can update the text without flickering
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "Marek 20m VFO  %s", FW_version); // prints the heading with the current firmware version
-  tft.drawString(strBuffer, 0, 0);                                         // prints the millis to position 0,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "FunkY 20m  %s", FW_version); // prints the heading with the current firmware version
+  tft.drawString(strBuffer, 0, 0);                                     // prints the millis to position 0,0 and with the font #7 which looks good for text
+  printRxTxState();
   updateFrequencies(frequency);
   printFreq(frequency); // prints the frequency to the display
   printStep(freqInc);
@@ -194,6 +206,7 @@ void loop()
     printFreq(frequency);
     printVFO_BFO(frequency);
     updateFrequencies(frequency);
+    printRxTxState();
 
     interrupt_encoder_executed = false;
   }
@@ -214,12 +227,12 @@ void printFreq(unsigned long frequency)
 
 void printStep(unsigned int freqInc)
 {
-  Serial.println("Step sice = " + freqInc);
+  Serial.println("Step size = " + freqInc);
   tft.setTextColor(tft.color565(0, 255, 50), TFT_BLACK); // by setting the text background color you can update the text without flickering
   tft.setFreeFont(FF8);
   tft.setTextSize(1);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "step: %dHz  ", freqInc);
+  snprintf(strBuffer, sizeof(strBuffer), "Step: %dHz  ", freqInc);
   tft.drawString(strBuffer, 0, 170); // prints the millis to position 0,99 74+24*2*2
 }
 
@@ -264,6 +277,24 @@ IRAM_ATTR void encSW_ISR()
   }
 }
 
+IRAM_ATTR void rxtx_switch()
+{
+  rxtx_status = digitalRead(Ptt_btn);
+  digitalWrite(RXTX_switch_pin, rxtx_status);
+  printRxTxState();
+}
+
+void printRxTxState()
+{
+  tft.setTextColor(rxtx_status ? tft.color565(0, 255, 0) : tft.color565(255, 0, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  tft.setFreeFont(FF7);
+  tft.setTextSize(1);
+  // tft.drawString(String(millis()), 0, 64);
+  char strBuffer[32];
+  snprintf(strBuffer, sizeof(strBuffer), "%s", rxtx_status ? "RX" : "TX"); // prints the heading with the current firmware version
+  tft.drawString(strBuffer, 400, 0);                                       // prints the millis to position 0,0 and with the font #7 which looks good for text
+}
+
 void updateFrequencies(unsigned long frequency)
 {
   // Set CLK0 to output VFO
@@ -281,5 +312,5 @@ void updateFrequencies(unsigned long frequency)
   si5351.update_status();
 
   // Print Frequency: 14 350 . 000
-  oneWireDisplay.printDouble((double)(frequency / 1000), 2, 0, SegmentBrightness); // Double, amount of digits after comma, starting pos, brightness
+  oneWireDisplay.printDouble((double)((double)frequency / (double)1000), 2, 0, SegmentBrightness); // Double, amount of digits after comma, starting pos, brightness
 }
