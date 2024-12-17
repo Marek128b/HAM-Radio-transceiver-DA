@@ -52,6 +52,7 @@ int32_t freq_correction = 155989; // Replace with your calculated ppm error
 Adafruit_NeoPixel indicator(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 addressableSegment oneWireDisplay(48, 7); // on pin 48, 7 Segments
+#define SegmentBrightness 255
 
 // init  Encoder object and pins
 static IRAM_ATTR void enc_cb(void *arg);
@@ -78,7 +79,7 @@ void setup()
   pinMode(backlight_led, OUTPUT);
   analogWrite(backlight_led, 255);
   oneWireDisplay.begin();
-  oneWireDisplay.printDouble(0, 1, 0, 100); // Double, amount of digits after comma, starting pos, brightness
+  oneWireDisplay.printDouble(0, 1, 0, SegmentBrightness); // Double, amount of digits after comma, starting pos, brightness
 
   indicator.setPixelColor(0, indicator.Color(0, 30, 0));
   indicator.show();
@@ -279,6 +280,6 @@ void updateFrequencies(unsigned long frequency)
   // status flags correctly.
   si5351.update_status();
 
-  // Print Frequency: 14 350 000
-  oneWireDisplay.printDouble((double)(frequency / 1000), 1, 0, 100); // Double, amount of digits after comma, starting pos, brightness
+  // Print Frequency: 14 350 . 000
+  oneWireDisplay.printDouble((double)(frequency / 1000), 2, 0, SegmentBrightness); // Double, amount of digits after comma, starting pos, brightness
 }
