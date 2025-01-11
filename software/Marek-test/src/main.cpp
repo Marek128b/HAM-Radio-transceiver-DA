@@ -15,10 +15,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.4
+// FIRMWARE VERSION v0.0.5
 // #########################################
 
-String FW_version = "v0.0.4";
+String FW_version = "v0.0.5";
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
 const int backlight_led = 46; // backlight of LCD
@@ -65,8 +65,12 @@ bool interrupt_encoder_executed = false;
 bool interrupt_encoder_switch_executed = false;
 
 #define Ptt_btn 4
-#define RXTX_switch_pin 5
+#define RXTX_switch_pin 37
 bool rxtx_status = 1;
+
+#define Vbat_pin 5
+unsigned long long lastVbatMeasurementMs = 0;
+#define VbatMeasureInterval 30000
 
 // ##############################################################################################################################
 static IRAM_ATTR void enc_cb(void *arg);
@@ -77,6 +81,7 @@ void printFreq(unsigned long frequency);
 void printStep(unsigned int freqInc);
 void printVFO_BFO(unsigned long frequency);
 void updateFrequencies(unsigned long frequency);
+void updateVoltage();
 // ##############################################################################################################################
 
 void setup()
@@ -123,6 +128,14 @@ void setup()
   pinMode(Ptt_btn, INPUT_PULLUP);
   attachInterrupt(Ptt_btn, rxtx_switch, CHANGE);
   pinMode(RXTX_switch_pin, OUTPUT);
+  digitalWrite(RXTX_switch_pin, rxtx_status);
+
+  // Vbat pin config
+  pinMode(Vbat_pin, INPUT);
+  Serial.println("Vbat adc value");
+  Serial.println(analogRead(Vbat_pin));
+  Serial.println("Vbat Voltage");
+  Serial.println((float)((float)analogRead(Vbat_pin) / (float)4096) * 3.3 * (12.2 / 2.2));
 
   tft.setTextColor(tft.color565(77, 238, 234), TFT_BLACK); // by setting the text background color you can update the text without flickering
   tft.setFreeFont(FF7);
@@ -142,6 +155,12 @@ void setup()
 
 void loop()
 {
+  if (millis() - lastVbatMeasurementMs >= VbatMeasureInterval)
+  {
+    lastVbatMeasurementMs = millis();
+    updateVoltage();
+  }
+
   if (interrupt_encoder_switch_executed)
   {
     Serial.println("encoder switch executed");
@@ -213,6 +232,14 @@ void loop()
 }
 
 // ##############################################################################################################################
+void updateVoltage()
+{
+  Serial.println("Vbat adc value");
+  Serial.println(analogRead(Vbat_pin));
+  Serial.println("Vbat Voltage");
+  Serial.println((float)(((float)analogRead(Vbat_pin)) / (float)4095) * 3.3 * (12.2 / 2.2) + 0.6);
+}
+
 void printFreq(unsigned long frequency)
 {
   Serial.println("Freq = " + frequency / 1000);
@@ -281,6 +308,8 @@ IRAM_ATTR void rxtx_switch()
 {
   rxtx_status = digitalRead(Ptt_btn);
   digitalWrite(RXTX_switch_pin, rxtx_status);
+  Serial.print("RXTX pin: ");
+  Serial.println(rxtx_status);
   printRxTxState();
 }
 
