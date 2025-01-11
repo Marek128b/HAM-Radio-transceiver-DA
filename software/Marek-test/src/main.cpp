@@ -9,15 +9,16 @@
 #include "soc/soc.h"
 #include "soc/sdmmc_reg.h"
 #include <ESP32Encoder.h>
+#include <addressable7segment.h>
 #include <Adafruit_NeoPixel.h>
 #include <si5351.h>
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.3
+// FIRMWARE VERSION v0.0.5
 // #########################################
 
-String FW_version = "v0.0.3";
+String FW_version = "v0.0.5";
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
 const int backlight_led = 46; // backlight of LCD
@@ -50,6 +51,9 @@ int32_t freq_correction = 155989; // Replace with your calculated ppm error
 #define NUMPIXELS 1 // How many NeoPixels there are in a strip
 Adafruit_NeoPixel indicator(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
+addressableSegment oneWireDisplay(48, 7); // on pin 48, 7 Segments
+#define SegmentBrightness 255
+
 // init  Encoder object and pins
 static IRAM_ATTR void enc_cb(void *arg);
 ESP32Encoder encoder(true, enc_cb);
@@ -60,13 +64,24 @@ long lastEncoderVal = 0;
 bool interrupt_encoder_executed = false;
 bool interrupt_encoder_switch_executed = false;
 
+#define Ptt_btn 4
+#define RXTX_switch_pin 37
+bool rxtx_status = 1;
+
+#define Vbat_pin 5
+unsigned long long lastVbatMeasurementMs = 0;
+#define VbatMeasureInterval 30000
+
 // ##############################################################################################################################
 static IRAM_ATTR void enc_cb(void *arg);
 IRAM_ATTR void encSW_ISR();
+IRAM_ATTR void rxtx_switch();
+void printRxTxState();
 void printFreq(unsigned long frequency);
 void printStep(unsigned int freqInc);
 void printVFO_BFO(unsigned long frequency);
 void updateFrequencies(unsigned long frequency);
+void updateVoltage();
 // ##############################################################################################################################
 
 void setup()
@@ -74,6 +89,8 @@ void setup()
   Serial.begin(115200);
   pinMode(backlight_led, OUTPUT);
   analogWrite(backlight_led, 255);
+  oneWireDisplay.begin();
+  oneWireDisplay.printDouble(0, 1, 0, SegmentBrightness); // Double, amount of digits after comma, starting pos, brightness
 
   indicator.setPixelColor(0, indicator.Color(0, 30, 0));
   indicator.show();
@@ -94,9 +111,9 @@ void setup()
   {
     Serial.println("Found Si5351 on I2C bus"); // if the si5351 ic is found set the drive strength for both CLK0 and CLK2
     si5351.set_correction(freq_correction, SI5351_PLL_INPUT_XO);
-    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA); // sets the pll A
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); //VFO 
-    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_6MA); //BFO
+    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);        // sets the pll A
+    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); // VFO
+    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_6MA); // BFO
     indicator.setPixelColor(0, indicator.Color(0, 0, 10));
     indicator.show();
   }
@@ -107,13 +124,27 @@ void setup()
 
   attachInterrupt(encSW, encSW_ISR, FALLING);
 
+  // Ptt button and switch
+  pinMode(Ptt_btn, INPUT_PULLUP);
+  attachInterrupt(Ptt_btn, rxtx_switch, CHANGE);
+  pinMode(RXTX_switch_pin, OUTPUT);
+  digitalWrite(RXTX_switch_pin, rxtx_status);
+
+  // Vbat pin config
+  pinMode(Vbat_pin, INPUT);
+  Serial.println("Vbat adc value");
+  Serial.println(analogRead(Vbat_pin));
+  Serial.println("Vbat Voltage");
+  Serial.println((float)((float)analogRead(Vbat_pin) / (float)4096) * 3.3 * (12.2 / 2.2));
+
   tft.setTextColor(tft.color565(77, 238, 234), TFT_BLACK); // by setting the text background color you can update the text without flickering
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "Marek 20m VFO  %s", FW_version); //prints the heading with the current firmware version 
-  tft.drawString(strBuffer, 0, 0); // prints the millis to position 0,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "FunkY 20m  %s", FW_version); // prints the heading with the current firmware version
+  tft.drawString(strBuffer, 0, 0);                                     // prints the millis to position 0,0 and with the font #7 which looks good for text
+  printRxTxState();
   updateFrequencies(frequency);
   printFreq(frequency); // prints the frequency to the display
   printStep(freqInc);
@@ -124,6 +155,12 @@ void setup()
 
 void loop()
 {
+  if (millis() - lastVbatMeasurementMs >= VbatMeasureInterval)
+  {
+    lastVbatMeasurementMs = millis();
+    updateVoltage();
+  }
+
   if (interrupt_encoder_switch_executed)
   {
     Serial.println("encoder switch executed");
@@ -188,12 +225,21 @@ void loop()
     printFreq(frequency);
     printVFO_BFO(frequency);
     updateFrequencies(frequency);
+    printRxTxState();
 
     interrupt_encoder_executed = false;
   }
 }
 
 // ##############################################################################################################################
+void updateVoltage()
+{
+  Serial.println("Vbat adc value");
+  Serial.println(analogRead(Vbat_pin));
+  Serial.println("Vbat Voltage");
+  Serial.println((float)(((float)analogRead(Vbat_pin)) / (float)4095) * 3.3 * (12.2 / 2.2) + 0.6);
+}
+
 void printFreq(unsigned long frequency)
 {
   Serial.println("Freq = " + frequency / 1000);
@@ -208,12 +254,12 @@ void printFreq(unsigned long frequency)
 
 void printStep(unsigned int freqInc)
 {
-  Serial.println("Step sice = " + freqInc);
+  Serial.println("Step size = " + freqInc);
   tft.setTextColor(tft.color565(0, 255, 50), TFT_BLACK); // by setting the text background color you can update the text without flickering
   tft.setFreeFont(FF8);
   tft.setTextSize(1);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "step: %dHz  ", freqInc);
+  snprintf(strBuffer, sizeof(strBuffer), "Step: %dHz  ", freqInc);
   tft.drawString(strBuffer, 0, 170); // prints the millis to position 0,99 74+24*2*2
 }
 
@@ -258,6 +304,26 @@ IRAM_ATTR void encSW_ISR()
   }
 }
 
+IRAM_ATTR void rxtx_switch()
+{
+  rxtx_status = digitalRead(Ptt_btn);
+  digitalWrite(RXTX_switch_pin, rxtx_status);
+  Serial.print("RXTX pin: ");
+  Serial.println(rxtx_status);
+  printRxTxState();
+}
+
+void printRxTxState()
+{
+  tft.setTextColor(rxtx_status ? tft.color565(0, 255, 0) : tft.color565(255, 0, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  tft.setFreeFont(FF7);
+  tft.setTextSize(1);
+  // tft.drawString(String(millis()), 0, 64);
+  char strBuffer[32];
+  snprintf(strBuffer, sizeof(strBuffer), "%s", rxtx_status ? "RX" : "TX"); // prints the heading with the current firmware version
+  tft.drawString(strBuffer, 400, 0);                                       // prints the millis to position 0,0 and with the font #7 which looks good for text
+}
+
 void updateFrequencies(unsigned long frequency)
 {
   // Set CLK0 to output VFO
@@ -273,4 +339,7 @@ void updateFrequencies(unsigned long frequency)
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
   si5351.update_status();
+
+  // Print Frequency: 14 350 . 000
+  oneWireDisplay.printDouble((double)((double)frequency / (double)1000), 2, 0, SegmentBrightness); // Double, amount of digits after comma, starting pos, brightness
 }
