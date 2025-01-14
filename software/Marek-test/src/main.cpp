@@ -15,10 +15,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.5
+// FIRMWARE VERSION v0.0.6
 // #########################################
 
-String FW_version = "v0.0.5";
+String FW_version = "v0.0.6";
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
 const int backlight_led = 46; // backlight of LCD
@@ -67,21 +67,24 @@ bool interrupt_encoder_switch_executed = false;
 #define Ptt_btn 4
 #define RXTX_switch_pin 37
 bool rxtx_status = 1;
+bool last_rxtx_status = 0;
 
 #define Vbat_pin 5
 unsigned long long lastVbatMeasurementMs = 0;
-#define VbatMeasureInterval 30000
+#define VbatMeasureInterval 2000
+float voltage = 0;
 
 // ##############################################################################################################################
 static IRAM_ATTR void enc_cb(void *arg);
 IRAM_ATTR void encSW_ISR();
-IRAM_ATTR void rxtx_switch();
+void rxtx_switch();
 void printRxTxState();
 void printFreq(unsigned long frequency);
 void printStep(unsigned int freqInc);
 void printVFO_BFO(unsigned long frequency);
 void updateFrequencies(unsigned long frequency);
 void updateVoltage();
+void printVoltage();
 // ##############################################################################################################################
 
 void setup()
@@ -126,24 +129,20 @@ void setup()
 
   // Ptt button and switch
   pinMode(Ptt_btn, INPUT_PULLUP);
-  attachInterrupt(Ptt_btn, rxtx_switch, CHANGE);
   pinMode(RXTX_switch_pin, OUTPUT);
-  digitalWrite(RXTX_switch_pin, rxtx_status);
+  digitalWrite(RXTX_switch_pin, !rxtx_status);
 
   // Vbat pin config
   pinMode(Vbat_pin, INPUT);
-  Serial.println("Vbat adc value");
-  Serial.println(analogRead(Vbat_pin));
-  Serial.println("Vbat Voltage");
-  Serial.println((float)((float)analogRead(Vbat_pin) / (float)4096) * 3.3 * (12.2 / 2.2));
+  updateVoltage();
 
   tft.setTextColor(tft.color565(77, 238, 234), TFT_BLACK); // by setting the text background color you can update the text without flickering
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "FunkY 20m  %s", FW_version); // prints the heading with the current firmware version
-  tft.drawString(strBuffer, 0, 0);                                     // prints the millis to position 0,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "FunkY %s", FW_version); // prints the heading with the current firmware version
+  tft.drawString(strBuffer, 0, 0);                                // prints the millis to position 0,0 and with the font #7 which looks good for text
   printRxTxState();
   updateFrequencies(frequency);
   printFreq(frequency); // prints the frequency to the display
@@ -229,6 +228,12 @@ void loop()
 
     interrupt_encoder_executed = false;
   }
+
+  if (digitalRead(Ptt_btn) != last_rxtx_status)
+  {
+    last_rxtx_status = digitalRead(Ptt_btn);
+    rxtx_switch();
+  }
 }
 
 // ##############################################################################################################################
@@ -237,7 +242,38 @@ void updateVoltage()
   Serial.println("Vbat adc value");
   Serial.println(analogRead(Vbat_pin));
   Serial.println("Vbat Voltage");
-  Serial.println((float)(((float)analogRead(Vbat_pin)) / (float)4095) * 3.3 * (12.2 / 2.2) + 0.6);
+  voltage = (float)(((float)analogRead(Vbat_pin)) / (float)4095) * 3.3 * (12.2 / 2.2) + 0.6;
+  Serial.println(voltage);
+  printVoltage();
+}
+
+void printVoltage()
+{
+  if (voltage < 3.7 * 3)
+  {
+    tft.setTextColor(tft.color565(255, 0, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  }
+  else if (voltage > 3.7 * 3 && voltage <= 3.8 * 3)
+  {
+    tft.setTextColor(tft.color565(255, 150, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  }
+  else if (voltage > 3.8 * 3 && voltage <= 3.9 * 3)
+  {
+    tft.setTextColor(tft.color565(255, 255, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  }
+  else if (voltage > 3.9 * 3 && voltage <= 4.0 * 3)
+  {
+    tft.setTextColor(tft.color565(150, 255, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  }
+  else
+  {
+    tft.setTextColor(tft.color565(0, 255, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  }
+  tft.setFreeFont(FF7);
+  tft.setTextSize(1);
+  char strBuffer[32];
+  snprintf(strBuffer, sizeof(strBuffer), "%.1fV", voltage); // prints the Battery Voltage
+  tft.drawString(strBuffer, 290, 0);                        // prints the millis to position 29,0 and with the font #7 which looks good for text
 }
 
 void printFreq(unsigned long frequency)
@@ -304,9 +340,9 @@ IRAM_ATTR void encSW_ISR()
   }
 }
 
-IRAM_ATTR void rxtx_switch()
+void rxtx_switch()
 {
-  rxtx_status = digitalRead(Ptt_btn);
+  rxtx_status = !digitalRead(Ptt_btn);
   digitalWrite(RXTX_switch_pin, rxtx_status);
   Serial.print("RXTX pin: ");
   Serial.println(rxtx_status);
@@ -315,13 +351,13 @@ IRAM_ATTR void rxtx_switch()
 
 void printRxTxState()
 {
-  tft.setTextColor(rxtx_status ? tft.color565(0, 255, 0) : tft.color565(255, 0, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  tft.setTextColor(!rxtx_status ? tft.color565(0, 255, 0) : tft.color565(255, 0, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "%s", rxtx_status ? "RX" : "TX"); // prints the heading with the current firmware version
-  tft.drawString(strBuffer, 400, 0);                                       // prints the millis to position 0,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "%s", !rxtx_status ? "RX" : "TX"); // prints the RX and TX status
+  tft.drawString(strBuffer, 430, 0);                                        // prints the millis to position 430,0 and with the font #7 which looks good for text
 }
 
 void updateFrequencies(unsigned long frequency)
