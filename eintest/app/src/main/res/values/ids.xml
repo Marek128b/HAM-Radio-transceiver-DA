@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="connectButton" type="id" />
+    <item name="sendButton" type="id" />
+    <item name="selectDeviceButton" type="id" />
+    <item name="deviceListView" type="id" />
+</resources>
