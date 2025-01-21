@@ -26,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import java.io.IOException
 import java.io.OutputStream
 import java.util.*
@@ -38,32 +41,39 @@ class MainActivity : ComponentActivity() {
 
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private var bluetoothSocket: BluetoothSocket? = null
-    private val deviceUUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // Standard UUID für SPP
+    private val deviceUUID: UUID =
+        UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // Standard UUID für SPP
     private var selectedDevice: BluetoothDevice? = null
     private var outputStream: OutputStream? = null
     private var isScanning by mutableStateOf(false)
 
-    private val requestBluetoothPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-        permissions.entries.forEach {
-            Log.d("Bluetooth", "${it.key} = ${it.value}")
+    private val requestBluetoothPermissions =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            permissions.entries.forEach {
+                Log.d("Bluetooth", "${it.key} = ${it.value}")
+            }
+            if (permissions[android.Manifest.permission.BLUETOOTH_CONNECT] == true &&
+                permissions[android.Manifest.permission.BLUETOOTH_SCAN] == true
+            ) {
+                Log.d("Bluetooth", "Berechtigungen gewährt. Bluetooth kann verwendet werden.")
+            } else {
+                Log.d(
+                    "Bluetooth",
+                    "Berechtigungen verweigert. Bluetooth kann nicht verwendet werden."
+                )
+                Toast.makeText(this, "Bluetooth-Berechtigungen erforderlich", Toast.LENGTH_SHORT)
+                    .show()
+            }
         }
-        if (permissions[android.Manifest.permission.BLUETOOTH_CONNECT] == true &&
-            permissions[android.Manifest.permission.BLUETOOTH_SCAN] == true
-        ) {
-            Log.d("Bluetooth", "Berechtigungen gewährt. Bluetooth kann verwendet werden.")
-        } else {
-            Log.d("Bluetooth", "Berechtigungen verweigert. Bluetooth kann nicht verwendet werden.")
-            Toast.makeText(this, "Bluetooth-Berechtigungen erforderlich", Toast.LENGTH_SHORT).show()
-        }
-    }
 
-    private val enableBluetoothLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (bluetoothAdapter?.isEnabled == true) {
-            Toast.makeText(this, "Bluetooth aktiviert", Toast.LENGTH_SHORT).show()
-        } else {
-            Toast.makeText(this, "Bluetooth nicht aktiviert", Toast.LENGTH_SHORT).show()
+    private val enableBluetoothLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (bluetoothAdapter?.isEnabled == true) {
+                Toast.makeText(this, "Bluetooth aktiviert", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Bluetooth nicht aktiviert", Toast.LENGTH_SHORT).show()
+            }
         }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,14 +89,26 @@ class MainActivity : ComponentActivity() {
         val permissionsToRequest = mutableListOf<String>()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_CONNECT)
             }
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.BLUETOOTH_SCAN
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_SCAN)
             }
         } else {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.BLUETOOTH
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 permissionsToRequest.add(android.Manifest.permission.BLUETOOTH)
             }
         }
@@ -123,12 +145,17 @@ class MainActivity : ComponentActivity() {
                 Toast.makeText(this, "Scan gestartet", Toast.LENGTH_SHORT).show()
                 registerReceiver(
                     object : android.content.BroadcastReceiver() {
-                        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                        override fun onReceive(
+                            context: android.content.Context?,
+                            intent: android.content.Intent?
+                        ) {
                             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
-                                val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                                val device =
+                                    intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                                 device?.let {
                                     if (!it.name.isNullOrEmpty()) { // Nur Geräte mit Namen hinzufügen
-                                        scannedDevices.value = scannedDevices.value + "${it.name} (${it.address})"
+                                        scannedDevices.value =
+                                            scannedDevices.value + "${it.name} (${it.address})"
                                     }
                                 }
                             }
@@ -137,22 +164,23 @@ class MainActivity : ComponentActivity() {
                     android.content.IntentFilter(BluetoothDevice.ACTION_FOUND)
                 )
             } else {
-                Toast.makeText(this, "Scan konnte nicht gestartet werden", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Scan konnte nicht gestartet werden", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
         try {
-            bluetoothSocket = device.createRfcommSocketToServiceRecord(deviceUUID)
-            bluetoothAdapter?.cancelDiscovery() // Wichtig, um Verbindungsprobleme zu vermeiden
-            bluetoothSocket?.connect()
+            bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(deviceUUID)
+            bluetoothAdapter?.cancelDiscovery() // Vermeide Verbindungsprobleme
+            bluetoothSocket?.connect()  // Verbinde
             outputStream = bluetoothSocket?.outputStream
-            Toast.makeText(this, "Verbindung zu ${device.name} hergestellt!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(applicationContext, "Verbindung zu ${device.name} hergestellt!", Toast.LENGTH_SHORT).show()
         } catch (e: IOException) {
             e.printStackTrace()
             Log.e("Bluetooth", "Verbindungsfehler: ${e.message}")
-            Toast.makeText(this, "Verbindungsfehler: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(applicationContext, "Verbindungsfehler: ${e.message}", Toast.LENGTH_SHORT).show()
             try {
                 bluetoothSocket?.close()
             } catch (closeException: IOException) {
@@ -160,6 +188,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
 
     private fun sendHelloWorldToESP() {
         try {
@@ -173,11 +203,15 @@ class MainActivity : ComponentActivity() {
         } catch (e: IOException) {
             e.printStackTrace()
             Log.e("Bluetooth", "Fehler beim Senden der Nachricht: ${e.message}")
-            Toast.makeText(this, "Fehler beim Senden der Nachricht: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Fehler beim Senden der Nachricht: ${e.message}",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
-    private fun startListeningForData(receivedData: MutableState<String>) {
+    private fun startListeningForData(receivedData: MutableState<List<String>>) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val inputStream = bluetoothSocket?.inputStream
@@ -189,10 +223,13 @@ class MainActivity : ComponentActivity() {
                 while (bluetoothSocket?.isConnected == true) {
                     val bytesRead = inputStream.read(buffer)
                     if (bytesRead > 0) {
-                        val data = String(buffer, 0, bytesRead)
-                        Log.d("Bluetooth", "Empfangene Daten: $data")
-                        withContext(Dispatchers.Main) {
-                            receivedData.value += "$data\n"
+                        val data = String(buffer, 0, bytesRead).trim()
+                        if (data.isNotEmpty()) {
+                            Log.d("Bluetooth", "Empfangene Daten: $data")
+                            withContext(Dispatchers.Main) {
+                                // Neue Daten an die Liste anhängen
+                                receivedData.value = receivedData.value + data
+                            }
                         }
                     }
                 }
@@ -201,6 +238,9 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
+
 
     override fun onDestroy() {
         super.onDestroy()
@@ -212,17 +252,153 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+
+    @Composable
+    fun BluetoothApp() {
+        val navController = rememberNavController() // NavController für Navigation
+        val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
+        val scannedDevices = remember { mutableStateOf(listOf<String>()) }
+        val receivedData = remember { mutableStateOf(listOf<String>()) }
+        var selectedDeviceName by remember { mutableStateOf<String?>(null) }
+
+        // Navigation
+        NavHost(navController, startDestination = "main_screen") {
+            composable("main_screen") {
+                // Der MainScreen zeigt die Geräteauswahl und die Verbindung
+                BluetoothMainScreen(
+                    pairedDevices = pairedDevices,
+                    scannedDevices = scannedDevices,
+                    onConnect = { device ->
+                        // Gerät verbinden
+                        connectToDevice(device)
+                        startListeningForData(receivedData)
+                        // Navigiere zu DataScreen nach erfolgreicher Verbindung
+                        navController.navigate("data_screen")
+                    }
+                )
+            }
+            composable("data_screen") {
+                // Der DataScreen zeigt die empfangenen Daten an
+                DataScreen(receivedData = receivedData.value)
+            }
+        }
+    }
+
+    @Composable
+    fun BluetoothMainScreen(
+        pairedDevices: List<String>,  // Dies ist eine Liste von Strings (Gerätenamen)
+        scannedDevices: MutableState<List<String>>,
+        onConnect: (BluetoothDevice) -> Unit // Diese Funktion erwartet jetzt ein BluetoothDevice
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = "Bluetooth Geräte",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(8.dp)
+            )
+
+            // Liste der gekoppelten Geräte anzeigen
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(pairedDevices) { deviceName ->
+                    Button(onClick = {
+                        // Extrahiere die Geräteadresse und finde das BluetoothDevice-Objekt
+                        val deviceAddress = deviceName.substringAfterLast("(").substringBefore(")")
+                        val device = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+
+                        // Wenn das Gerät gefunden wird, wird es an die Funktion onConnect übergeben
+                        device?.let {
+                            onConnect(it)  // Übergibt das BluetoothDevice an die connectToDevice Methode
+                        } ?: run {
+                            Toast.makeText(applicationContext, "Gerät nicht gefunden", Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Text(text = deviceName)
+                    }
+                }
+            }
+
+            // Liste der gescannten Geräte anzeigen (optional)
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(scannedDevices.value) { deviceName ->
+                    Button(onClick = {
+                        // Extrahiere die Geräteadresse und finde das BluetoothDevice-Objekt
+                        val deviceAddress = deviceName.substringAfterLast("(").substringBefore(")")
+                        val device = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+
+                        // Wenn das Gerät gefunden wird, wird es an die Funktion onConnect übergeben
+                        device?.let {
+                            onConnect(it)  // Übergibt das BluetoothDevice an die connectToDevice Methode
+                        } ?: run {
+                            Toast.makeText(applicationContext, "Gerät nicht gefunden", Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Text(text = deviceName)
+                    }
+                }
+            }
+        }
+    }
+
+
+    @Composable
+    fun DataScreen(receivedData: List<String>) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = "Empfangene Daten:",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(8.dp)
+            )
+
+            // Umkehrung der Liste, damit die neuesten Daten oben angezeigt werden
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(receivedData.reversed()) { data ->  // Hier wird die Liste umgekehrt
+                    Text(
+                        text = data,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /*
     @Composable
     fun BluetoothApp() {
         val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
         val scannedDevices = remember { mutableStateOf(listOf<String>()) }
-        val receivedData = remember { mutableStateOf("") }
+        val receivedData = remember { mutableStateOf(listOf<String>()) }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
 
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
                 text = "Empfangene Daten:",
                 style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp)
@@ -237,9 +413,10 @@ class MainActivity : ComponentActivity() {
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                item {
+                items(receivedData.value) { data ->
                     Text(
-                        text = receivedData.value,
+                        text = data,
+                        color = Color.White,
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(8.dp)
                     )
@@ -248,14 +425,23 @@ class MainActivity : ComponentActivity() {
 
             LazyColumn(modifier = Modifier.weight(2f)) {
                 item {
-                    Text("Gekoppelte Geräte:", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Gekoppelte Geräte:",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White
+                    )
                 }
                 items(pairedDevices) { device ->
                     Button(onClick = {
                         selectedDeviceName = device
                         val deviceAddress = device.substringAfterLast("(").substringBefore(")")
-                        selectedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                        Toast.makeText(applicationContext, "Ausgewählt: $device", Toast.LENGTH_SHORT).show()
+                        selectedDevice =
+                            bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                        Toast.makeText(
+                            applicationContext,
+                            "Ausgewählt: $device",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }) {
                         Text(device)
                     }
@@ -263,14 +449,23 @@ class MainActivity : ComponentActivity() {
 
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Gefundene Geräte:", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Gefundene Geräte:",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White
+                    )
                 }
                 items(scannedDevices.value) { device ->
                     Button(onClick = {
                         selectedDeviceName = device
                         val deviceAddress = device.substringAfterLast("(").substringBefore(")")
-                        selectedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                        Toast.makeText(applicationContext, "Ausgewählt: $device", Toast.LENGTH_SHORT).show()
+                        selectedDevice =
+                            bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                        Toast.makeText(
+                            applicationContext,
+                            "Ausgewählt: $device",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }) {
                         Text(device)
                     }
@@ -288,17 +483,39 @@ class MainActivity : ComponentActivity() {
                     selectedDevice?.let {
                         connectToDevice(it)
                         startListeningForData(receivedData)
-                    } ?: Toast.makeText(applicationContext, "Kein Gerät ausgewählt", Toast.LENGTH_SHORT).show()
+                    } ?: Toast.makeText(
+                        applicationContext,
+                        "Kein Gerät ausgewählt",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }) {
-                    Icon(imageVector = Icons.Filled.Check, contentDescription = "Verbinden", tint = Color.Blue)
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "Verbinden",
+                        tint = Color.Blue
+                    )
                 }
-                IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = { startScanningDevices(scannedDevices) }) {
-                    Icon(imageVector = Icons.Filled.Search, contentDescription = "Scannen", tint = Color.Green)
+                IconButton(
+                    modifier = Modifier.size(64.dp).padding(4.dp),
+                    onClick = { startScanningDevices(scannedDevices) }) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Scannen",
+                        tint = Color.Green
+                    )
                 }
-                IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = { sendHelloWorldToESP() }) {
-                    Icon(imageVector = Icons.Filled.Send, contentDescription = "Senden", tint = Color.Red)
+                IconButton(
+                    modifier = Modifier.size(64.dp).padding(4.dp),
+                    onClick = { sendHelloWorldToESP() }) {
+                    Icon(
+                        imageVector = Icons.Filled.Send,
+                        contentDescription = "Senden",
+                        tint = Color.Red
+                    )
                 }
             }
         }
     }
+
+     */
 }
