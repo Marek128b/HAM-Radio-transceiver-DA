@@ -11,24 +11,28 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.io.IOException
 import java.io.OutputStream
 import java.util.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -123,7 +127,9 @@ class MainActivity : ComponentActivity() {
                             if (intent?.action == BluetoothDevice.ACTION_FOUND) {
                                 val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                                 device?.let {
-                                    scannedDevices.value = scannedDevices.value + "${it.name ?: "Unbekannt"} (${it.address})"
+                                    if (!it.name.isNullOrEmpty()) { // Nur Geräte mit Namen hinzufügen
+                                        scannedDevices.value = scannedDevices.value + "${it.name} (${it.address})"
+                                    }
                                 }
                             }
                         }
@@ -171,6 +177,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun startListeningForData(receivedData: MutableState<String>) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val inputStream = bluetoothSocket?.inputStream
+                if (inputStream == null) {
+                    Log.e("Bluetooth", "InputStream ist null")
+                    return@launch
+                }
+                val buffer = ByteArray(1024)
+                while (bluetoothSocket?.isConnected == true) {
+                    val bytesRead = inputStream.read(buffer)
+                    if (bytesRead > 0) {
+                        val data = String(buffer, 0, bytesRead)
+                        Log.d("Bluetooth", "Empfangene Daten: $data")
+                        withContext(Dispatchers.Main) {
+                            receivedData.value += "$data\n"
+                        }
+                    }
+                }
+            } catch (e: IOException) {
+                Log.e("Bluetooth", "Fehler beim Lesen von Daten: ${e.message}")
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         try {
@@ -185,10 +216,37 @@ class MainActivity : ComponentActivity() {
     fun BluetoothApp() {
         val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
         val scannedDevices = remember { mutableStateOf(listOf<String>()) }
+        val receivedData = remember { mutableStateOf("") }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Empfangene Daten:",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                    .padding(8.dp)
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                item {
+                    Text(
+                        text = receivedData.value,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+
+            LazyColumn(modifier = Modifier.weight(2f)) {
                 item {
                     Text("Gekoppelte Geräte:", style = MaterialTheme.typography.titleLarge)
                 }
@@ -229,9 +287,10 @@ class MainActivity : ComponentActivity() {
                 IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = {
                     selectedDevice?.let {
                         connectToDevice(it)
+                        startListeningForData(receivedData)
                     } ?: Toast.makeText(applicationContext, "Kein Gerät ausgewählt", Toast.LENGTH_SHORT).show()
                 }) {
-                    Icon(imageVector = Icons.Filled.Share, contentDescription = "Verbinden", tint = Color.Blue)
+                    Icon(imageVector = Icons.Filled.Check, contentDescription = "Verbinden", tint = Color.Blue)
                 }
                 IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = { startScanningDevices(scannedDevices) }) {
                     Icon(imageVector = Icons.Filled.Search, contentDescription = "Scannen", tint = Color.Green)
