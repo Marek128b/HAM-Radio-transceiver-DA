@@ -11,15 +11,20 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import java.io.IOException
 import java.io.OutputStream
@@ -32,6 +37,7 @@ class MainActivity : ComponentActivity() {
     private val deviceUUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // Standard UUID für SPP
     private var selectedDevice: BluetoothDevice? = null
     private var outputStream: OutputStream? = null
+    private var isScanning by mutableStateOf(false)
 
     private val requestBluetoothPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
         permissions.entries.forEach {
@@ -47,26 +53,49 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val enableBluetoothLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (bluetoothAdapter?.isEnabled == true) {
+            Toast.makeText(this, "Bluetooth aktiviert", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Bluetooth nicht aktiviert", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             BluetoothApp()
         }
 
-        // Berechtigungen prüfen und anfordern
+        checkAndRequestBluetoothPermissions()
+        promptEnableBluetooth()
+    }
+
+    private fun checkAndRequestBluetoothPermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestBluetoothPermissions.launch(
-                    arrayOf(
-                        android.Manifest.permission.BLUETOOTH_CONNECT,
-                        android.Manifest.permission.BLUETOOTH_SCAN
-                    )
-                )
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+            }
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_SCAN)
             }
         } else {
-            Log.d("Bluetooth", "Berechtigungen nicht erforderlich für diese Android-Version.")
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH)
+            }
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestBluetoothPermissions.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+
+    private fun promptEnableBluetooth() {
+        if (bluetoothAdapter?.isEnabled == false) {
+            val enableBtIntent = android.content.Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            enableBluetoothLauncher.launch(enableBtIntent)
         }
     }
 
@@ -77,6 +106,34 @@ class MainActivity : ComponentActivity() {
             deviceList.add("${device.name} (${device.address})")
         }
         return deviceList
+    }
+
+    private fun startScanningDevices(scannedDevices: MutableState<List<String>>) {
+        if (isScanning) {
+            bluetoothAdapter?.cancelDiscovery()
+            isScanning = false
+            Toast.makeText(this, "Scan gestoppt", Toast.LENGTH_SHORT).show()
+        } else {
+            if (bluetoothAdapter?.startDiscovery() == true) {
+                isScanning = true
+                Toast.makeText(this, "Scan gestartet", Toast.LENGTH_SHORT).show()
+                registerReceiver(
+                    object : android.content.BroadcastReceiver() {
+                        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                            if (intent?.action == BluetoothDevice.ACTION_FOUND) {
+                                val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                                device?.let {
+                                    scannedDevices.value = scannedDevices.value + "${it.name ?: "Unbekannt"} (${it.address})"
+                                }
+                            }
+                        }
+                    },
+                    android.content.IntentFilter(BluetoothDevice.ACTION_FOUND)
+                )
+            } else {
+                Toast.makeText(this, "Scan konnte nicht gestartet werden", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
@@ -126,19 +183,31 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun BluetoothApp() {
-        var deviceList by remember { mutableStateOf(getPairedDevices()) }
+        val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
+        val scannedDevices = remember { mutableStateOf(listOf<String>()) }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
 
-        Column {
-            Button(onClick = { sendHelloWorldToESP() }) {
-                Text("Sende Nachricht")
-            }
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                item {
+                    Text("Gekoppelte Geräte:", style = MaterialTheme.typography.titleLarge)
+                }
+                items(pairedDevices) { device ->
+                    Button(onClick = {
+                        selectedDeviceName = device
+                        val deviceAddress = device.substringAfterLast("(").substringBefore(")")
+                        selectedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                        Toast.makeText(applicationContext, "Ausgewählt: $device", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text(device)
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Verbinden mit Gerät:")
-            LazyColumn {
-                items(deviceList) { device ->
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Gefundene Geräte:", style = MaterialTheme.typography.titleLarge)
+                }
+                items(scannedDevices.value) { device ->
                     Button(onClick = {
                         selectedDeviceName = device
                         val deviceAddress = device.substringAfterLast("(").substringBefore(")")
@@ -150,14 +219,26 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(onClick = {
-                selectedDevice?.let {
-                    connectToDevice(it)
-                } ?: Toast.makeText(applicationContext, "Kein Gerät ausgewählt", Toast.LENGTH_SHORT).show()
-            }) {
-                Text("Mit Gerät verbinden")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = {
+                    selectedDevice?.let {
+                        connectToDevice(it)
+                    } ?: Toast.makeText(applicationContext, "Kein Gerät ausgewählt", Toast.LENGTH_SHORT).show()
+                }) {
+                    Icon(imageVector = Icons.Filled.Share, contentDescription = "Verbinden", tint = Color.Blue)
+                }
+                IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = { startScanningDevices(scannedDevices) }) {
+                    Icon(imageVector = Icons.Filled.Search, contentDescription = "Scannen", tint = Color.Green)
+                }
+                IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = { sendHelloWorldToESP() }) {
+                    Icon(imageVector = Icons.Filled.Send, contentDescription = "Senden", tint = Color.Red)
+                }
             }
         }
     }
