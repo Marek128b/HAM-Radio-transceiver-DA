@@ -12,9 +12,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
@@ -23,8 +25,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -176,11 +185,19 @@ class MainActivity : ComponentActivity() {
             bluetoothAdapter?.cancelDiscovery() // Vermeide Verbindungsprobleme
             bluetoothSocket?.connect()  // Verbinde
             outputStream = bluetoothSocket?.outputStream
-            Toast.makeText(applicationContext, "Verbindung zu ${device.name} hergestellt!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                applicationContext,
+                "Verbindung zu ${device.name} hergestellt!",
+                Toast.LENGTH_SHORT
+            ).show()
         } catch (e: IOException) {
             e.printStackTrace()
             Log.e("Bluetooth", "Verbindungsfehler: ${e.message}")
-            Toast.makeText(applicationContext, "Verbindungsfehler: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                applicationContext,
+                "Verbindungsfehler: ${e.message}",
+                Toast.LENGTH_SHORT
+            ).show()
             try {
                 bluetoothSocket?.close()
             } catch (closeException: IOException) {
@@ -188,7 +205,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
 
 
     private fun sendHelloWorldToESP() {
@@ -240,8 +256,6 @@ class MainActivity : ComponentActivity() {
     }
 
 
-
-
     override fun onDestroy() {
         super.onDestroy()
         try {
@@ -255,267 +269,202 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun BluetoothApp() {
-        val navController = rememberNavController() // NavController für Navigation
         val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
         val scannedDevices = remember { mutableStateOf(listOf<String>()) }
         val receivedData = remember { mutableStateOf(listOf<String>()) }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
 
-        // Navigation
-        NavHost(navController, startDestination = "main_screen") {
-            composable("main_screen") {
-                // Der MainScreen zeigt die Geräteauswahl und die Verbindung
-                BluetoothMainScreen(
-                    pairedDevices = pairedDevices,
-                    scannedDevices = scannedDevices,
-                    onConnect = { device ->
-                        // Gerät verbinden
-                        connectToDevice(device)
-                        startListeningForData(receivedData)
-                        // Navigiere zu DataScreen nach erfolgreicher Verbindung
-                        navController.navigate("data_screen")
-                    }
+        val gradientBrush = Brush.linearGradient(
+            colors = listOf(Color(0xFF11144F), Color(0xFF1F4596)),
+            start = androidx.compose.ui.geometry.Offset(0f, 0f),
+            end = androidx.compose.ui.geometry.Offset(1500f, 1500f)
+        )
+
+        val screenWidth = LocalConfiguration.current.screenWidthDp
+        val screenHeight = LocalConfiguration.current.screenHeightDp
+
+        val radialGradientBrush = Brush.radialGradient(
+            0f to Color.Red,
+            100.0f to Color.Green,
+            center = Offset(
+                screenWidth / 2f, screenHeight / 2f
+            ),
+            radius = 1000.0f,
+            tileMode = TileMode.Clamp
+        )
+
+
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(gradientBrush)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                /*
+                Text(
+                    text = "Empfangene Daten:",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .padding(8.dp)
                 )
-            }
-            composable("data_screen") {
-                // Der DataScreen zeigt die empfangenen Daten an
-                DataScreen(receivedData = receivedData.value)
-            }
-        }
-    }
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(receivedData.value.reversed()) { data ->
+                        Text(
+                            text = data,
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
 
-    @Composable
-    fun BluetoothMainScreen(
-        pairedDevices: List<String>,  // Dies ist eine Liste von Strings (Gerätenamen)
-        scannedDevices: MutableState<List<String>>,
-        onConnect: (BluetoothDevice) -> Unit // Diese Funktion erwartet jetzt ein BluetoothDevice
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = "Bluetooth Geräte",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(8.dp)
-            )
+                 */
 
-            // Liste der gekoppelten Geräte anzeigen
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(pairedDevices) { deviceName ->
-                    Button(onClick = {
-                        // Extrahiere die Geräteadresse und finde das BluetoothDevice-Objekt
-                        val deviceAddress = deviceName.substringAfterLast("(").substringBefore(")")
-                        val device = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp, 0.dp)
+                ) {
 
-                        // Wenn das Gerät gefunden wird, wird es an die Funktion onConnect übergeben
-                        device?.let {
-                            onConnect(it)  // Übergibt das BluetoothDevice an die connectToDevice Methode
-                        } ?: run {
-                            Toast.makeText(applicationContext, "Gerät nicht gefunden", Toast.LENGTH_SHORT).show()
+                    item {
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+
+                    // Die große Box, die alle kleinen Boxen umhüllt
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(25.dp))
+                                .background(Color.White)
+                                .padding(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(gradientBrush)
+                            ) {
+                                Column {
+
+                                    //Paired Devices anzeige
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(20.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Paired Devices",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 24.sp,
+                                            color = Color.White
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(20.dp, 0.dp, 20.dp, 20.dp)
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(Color(0xFF199A40))
+                                            .height(5.dp)
+                                    )
+                                    pairedDevices.forEach { device ->
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(10.dp, 0.dp, 10.dp, 10.dp)
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(10.dp)) // Clip kommt hier, um abgerundete Ecken auf die Box anzuwenden
+                                                .background(Color(0x2F0000FF)) // Hintergrund mit abgerundeten Ecken
+                                                .clickable(onClick = {
+                                                    selectedDeviceName = device
+                                                    val deviceAddress =
+                                                        device.substringAfterLast("(")
+                                                            .substringBefore(")")
+                                                    selectedDevice =
+                                                        bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                                                    Toast.makeText(
+                                                        applicationContext,
+                                                        "Ausgewählt: $device",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                })
+                                                .padding(20.dp) // Padding innerhalb der abgerundeten Box
+                                        )
+
+                                        {
+                                            Text(device, color = Color.White)
+                                        }
+                                    }
+                                }
+                            }
                         }
-                    }) {
-                        Text(text = deviceName)
-                    }
-                }
-            }
 
-            // Liste der gescannten Geräte anzeigen (optional)
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(scannedDevices.value) { deviceName ->
-                    Button(onClick = {
-                        // Extrahiere die Geräteadresse und finde das BluetoothDevice-Objekt
-                        val deviceAddress = deviceName.substringAfterLast("(").substringBefore(")")
-                        val device = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
 
-                        // Wenn das Gerät gefunden wird, wird es an die Funktion onConnect übergeben
-                        device?.let {
-                            onConnect(it)  // Übergibt das BluetoothDevice an die connectToDevice Methode
-                        } ?: run {
-                            Toast.makeText(applicationContext, "Gerät nicht gefunden", Toast.LENGTH_SHORT).show()
+
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(modifier = Modifier
+                                .size(64.dp)
+                                .padding(4.dp), onClick = {
+                                selectedDevice?.let {
+                                    connectToDevice(it)
+                                    startListeningForData(receivedData)
+                                } ?: Toast.makeText(
+                                    applicationContext,
+                                    "Kein Gerät ausgewählt",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = "Verbinden",
+                                    tint = Color.Blue
+                                )
+                            }
+                            IconButton(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .padding(4.dp),
+                                onClick = { startScanningDevices(scannedDevices) }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Search,
+                                    contentDescription = "Scannen",
+                                    tint = Color.Green
+                                )
+                            }
+                            IconButton(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .padding(4.dp),
+                                onClick = { sendHelloWorldToESP() }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Send,
+                                    contentDescription = "Senden",
+                                    tint = Color.Red
+                                )
+                            }
                         }
-                    }) {
-                        Text(text = deviceName)
                     }
                 }
             }
         }
     }
-
-
-    @Composable
-    fun DataScreen(receivedData: List<String>) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = "Empfangene Daten:",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(8.dp)
-            )
-
-            // Umkehrung der Liste, damit die neuesten Daten oben angezeigt werden
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(receivedData.reversed()) { data ->  // Hier wird die Liste umgekehrt
-                    Text(
-                        text = data,
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-            }
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /*
-    @Composable
-    fun BluetoothApp() {
-        val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
-        val scannedDevices = remember { mutableStateOf(listOf<String>()) }
-        val receivedData = remember { mutableStateOf(listOf<String>()) }
-        var selectedDeviceName by remember { mutableStateOf<String?>(null) }
-
-        Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = "Empfangene Daten:",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                    .padding(8.dp)
-            )
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(receivedData.value) { data ->
-                    Text(
-                        text = data,
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-            }
-
-            LazyColumn(modifier = Modifier.weight(2f)) {
-                item {
-                    Text(
-                        "Gekoppelte Geräte:",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.White
-                    )
-                }
-                items(pairedDevices) { device ->
-                    Button(onClick = {
-                        selectedDeviceName = device
-                        val deviceAddress = device.substringAfterLast("(").substringBefore(")")
-                        selectedDevice =
-                            bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                        Toast.makeText(
-                            applicationContext,
-                            "Ausgewählt: $device",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }) {
-                        Text(device)
-                    }
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Gefundene Geräte:",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.White
-                    )
-                }
-                items(scannedDevices.value) { device ->
-                    Button(onClick = {
-                        selectedDeviceName = device
-                        val deviceAddress = device.substringAfterLast("(").substringBefore(")")
-                        selectedDevice =
-                            bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                        Toast.makeText(
-                            applicationContext,
-                            "Ausgewählt: $device",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }) {
-                        Text(device)
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(modifier = Modifier.size(64.dp).padding(4.dp), onClick = {
-                    selectedDevice?.let {
-                        connectToDevice(it)
-                        startListeningForData(receivedData)
-                    } ?: Toast.makeText(
-                        applicationContext,
-                        "Kein Gerät ausgewählt",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }) {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = "Verbinden",
-                        tint = Color.Blue
-                    )
-                }
-                IconButton(
-                    modifier = Modifier.size(64.dp).padding(4.dp),
-                    onClick = { startScanningDevices(scannedDevices) }) {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = "Scannen",
-                        tint = Color.Green
-                    )
-                }
-                IconButton(
-                    modifier = Modifier.size(64.dp).padding(4.dp),
-                    onClick = { sendHelloWorldToESP() }) {
-                    Icon(
-                        imageVector = Icons.Filled.Send,
-                        contentDescription = "Senden",
-                        tint = Color.Red
-                    )
-                }
-            }
-        }
-    }
-
-     */
 }
