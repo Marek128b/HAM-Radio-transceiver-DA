@@ -8,8 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -43,6 +45,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.Manifest
+import androidx.compose.ui.zIndex
 
 class MainActivity : ComponentActivity() {
 
@@ -73,6 +77,22 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+
+
+    private val requestLocationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                // Berechtigung wurde erteilt
+                Toast.makeText(this, "Standortberechtigung erteilt", Toast.LENGTH_SHORT).show()
+            } else {
+                // Berechtigung wurde verweigert
+                Toast.makeText(this, "Standortberechtigung verweigert", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+
+
+
     private val enableBluetoothLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (bluetoothAdapter?.isEnabled == true) {
@@ -91,6 +111,8 @@ class MainActivity : ComponentActivity() {
         checkAndRequestBluetoothPermissions()
         promptEnableBluetooth()
         requestPermissionsTest()
+        requestLocationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+
     }
 
     private fun checkAndRequestBluetoothPermissions() {
@@ -243,6 +265,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun connectToDeviceFromScannedList(deviceInfo: String) {
+        try {
+            // Extrahiere die Geräteadresse aus dem String (z. B. "DeviceName (00:11:22:33:44:55)")
+            val deviceAddress = deviceInfo.substringAfterLast("(").substringBefore(")")
+            val device = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                ?: bluetoothAdapter?.getRemoteDevice(deviceAddress)
+
+            if (device != null) {
+                connectToDevice(device)
+            } else {
+                Toast.makeText(this, "Gerät nicht gefunden: $deviceInfo", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Log.e("Bluetooth", "Fehler bei Verbindung zu $deviceInfo: ${e.message}")
+        }
+    }
+
+
 
     private fun sendHelloWorldToESP() {
         try {
@@ -321,6 +362,7 @@ class MainActivity : ComponentActivity() {
                 .fillMaxSize()
                 .background(gradientBrush)
         ) {
+
             Column(modifier = Modifier.fillMaxSize()) {
                 // Überschrift
                 Text(
@@ -427,7 +469,7 @@ class MainActivity : ComponentActivity() {
                                                 .padding(20.dp) // Padding innerhalb der abgerundeten Box
                                         )
                                         {
-                                            Text(device, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                            Text(device, color = Color.White, fontSize = 16.sp)
                                         }
                                     }
                                 }
@@ -500,12 +542,14 @@ class MainActivity : ComponentActivity() {
                                                         "Ausgewählt: $device",
                                                         Toast.LENGTH_SHORT
                                                     ).show()
+                                                    connectToDeviceFromScannedList(device)
+                                                    startListeningForData(receivedData)
                                                 })
                                                 .padding(20.dp) // Padding innerhalb der abgerundeten Box
                                         )
 
                                         {
-                                            Text(device, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                            Text(device, color = Color.White, fontSize = 16.sp)
                                         }
                                     }
                                 }
@@ -515,22 +559,23 @@ class MainActivity : ComponentActivity() {
 
 
                     item {
-                        Spacer(modifier = Modifier.height(40.dp))
+                        Spacer(modifier = Modifier.height(100.dp))
                     }
 
                 }
             }
 
 
-            //---------------------------------Hotbar-------------------------------------
-
+            // Hotbar bleibt unabhängig und unten sichtbar
             Box(
                 modifier = Modifier
-                    .padding(250.dp, 20.dp)
                     .fillMaxWidth()
+                    .padding(20.dp)
+                    .height(60.dp)
+                    .align(Alignment.BottomCenter)
                     .clip(RoundedCornerShape(40.dp))
                     .background(Color(0xAFFFFFFF))
-                    .align(Alignment.BottomCenter)
+                    .zIndex(1f) // Hotbar bleibt über den anderen Elementen
             ) {
                 Row(
                     modifier = Modifier
@@ -554,7 +599,7 @@ class MainActivity : ComponentActivity() {
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = "Verbinden",
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(35.dp),
                             tint = Color.Blue
                         )
                     }
@@ -567,14 +612,14 @@ class MainActivity : ComponentActivity() {
                             Icon(
                                 imageVector = Icons.Rounded.Search,
                                 contentDescription = "Scannen",
-                                modifier = Modifier.size(40.dp),
+                                modifier = Modifier.size(35.dp),
                                 tint = Color.Red
                             )
                         }else{
                             Icon(
                                 imageVector = Icons.Rounded.Search,
                                 contentDescription = "Scannen",
-                                modifier = Modifier.size(40.dp),
+                                modifier = Modifier.size(35.dp),
                                 tint = Color(0xFF199A40)
                             )
                         }
@@ -588,12 +633,16 @@ class MainActivity : ComponentActivity() {
                         Icon(
                             imageVector = Icons.Rounded.Send,
                             contentDescription = "Senden",
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(35.dp),
                             tint = Color.Blue
                         )
                     }
                 }
             }
+
+
+
+
         }
     }
 }
