@@ -288,7 +288,7 @@ class MainActivity : ComponentActivity() {
     private fun sendHelloWorldToESP() {
         try {
             if (bluetoothSocket?.isConnected == true) {
-                val message = "Halle hier ist FunkY App"
+                val message = "{\"getFrequency\":1,\"getCall\":1}\n"
                 outputStream?.write(message.toByteArray())
                 Toast.makeText(this, "Nachricht gesendet: $message", Toast.LENGTH_SHORT).show()
             } else {
