@@ -8,10 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -47,6 +45,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.Manifest
 import androidx.compose.ui.zIndex
+import at.htlklu.eintest.data.FunkyInfo
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class MainActivity : ComponentActivity() {
 
@@ -78,7 +79,6 @@ class MainActivity : ComponentActivity() {
         }
 
 
-
     private val requestLocationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
@@ -89,8 +89,6 @@ class MainActivity : ComponentActivity() {
                 Toast.makeText(this, "Standortberechtigung verweigert", Toast.LENGTH_SHORT).show()
             }
         }
-
-
 
 
     private val enableBluetoothLauncher =
@@ -148,7 +146,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     private fun promptEnableBluetooth() {
         if (bluetoothAdapter?.isEnabled == false) {
             val enableBtIntent = android.content.Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
@@ -177,8 +174,6 @@ class MainActivity : ComponentActivity() {
             }
         )
     }
-
-
 
     private var bluetoothReceiver: BroadcastReceiver? = null
 
@@ -237,7 +232,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     private fun connectToDevice(device: BluetoothDevice) {
         try {
             bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(deviceUUID)
@@ -283,27 +277,38 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
-
     private fun sendHelloWorldToESP() {
         try {
             if (bluetoothSocket?.isConnected == true) {
-                val message = "{\"getFrequency\":1,\"getCall\":1}\n"
-                outputStream?.write(message.toByteArray())
-                Toast.makeText(this, "Nachricht gesendet: $message", Toast.LENGTH_SHORT).show()
+
+                val jsonString = Json.encodeToString(
+                    FunkyInfo(
+                        true,
+                        true,
+                        false,
+                        true,
+                        true
+                    )
+                ) + "\n"
+
+
+                //val jsonString = """{"getFrequency":true, "getName":true}""" + "\n"
+
+                outputStream?.write(jsonString.toByteArray(Charsets.UTF_8))
+                outputStream?.flush()
+
+                Log.d("Bluetooth", "JSON gesendet: $jsonString")
+                Toast.makeText(this, "Nachricht gesendet: $jsonString", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Bluetooth ist nicht verbunden", Toast.LENGTH_SHORT).show()
             }
         } catch (e: IOException) {
             e.printStackTrace()
             Log.e("Bluetooth", "Fehler beim Senden der Nachricht: ${e.message}")
-            Toast.makeText(
-                this,
-                "Fehler beim Senden der Nachricht: ${e.message}",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "Fehler beim Senden: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
+
 
     private fun startListeningForData(receivedData: MutableState<List<String>>) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -332,7 +337,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
 
     override fun onDestroy() {
         super.onDestroy()
@@ -608,14 +612,14 @@ class MainActivity : ComponentActivity() {
                             .size(64.dp)
                             .padding(4.dp),
                         onClick = { startScanningDevices(scannedDevices) }) {
-                        if (isScanning){
+                        if (isScanning) {
                             Icon(
                                 imageVector = Icons.Rounded.Search,
                                 contentDescription = "Scannen",
                                 modifier = Modifier.size(35.dp),
                                 tint = Color.Red
                             )
-                        }else{
+                        } else {
                             Icon(
                                 imageVector = Icons.Rounded.Search,
                                 contentDescription = "Scannen",
@@ -639,8 +643,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-
-
 
 
         }
