@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "lut.h"
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include "Free_Fonts.h"
@@ -15,10 +16,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.6
+// FIRMWARE VERSION v0.0.7
 // #########################################
 
-String FW_version = "v0.0.6";
+String FW_version = "v0.0.7";
 
 TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
 const int backlight_led = 46; // backlight of LCD
@@ -74,6 +75,11 @@ unsigned long long lastVbatMeasurementMs = 0;
 #define VbatMeasureInterval 2000
 float voltage = 0;
 
+// NTC temperature
+#define NTC_in_pin 6
+unsigned long long lastNTCMeasurementMs = 0;
+#define NTCMeasureInterval 1000
+
 // ##############################################################################################################################
 static IRAM_ATTR void enc_cb(void *arg);
 IRAM_ATTR void encSW_ISR();
@@ -85,6 +91,12 @@ void printVFO_BFO(unsigned long frequency);
 void updateFrequencies(unsigned long frequency);
 void updateVoltage();
 void printVoltage();
+void updateNTCTemperature();
+float NTC_ADC2Temperature(unsigned int adc_value)
+{
+  return (float)NTC_table[adc_value] / (float)10;
+}
+
 // ##############################################################################################################################
 
 void setup()
@@ -127,6 +139,9 @@ void setup()
 
   attachInterrupt(encSW, encSW_ISR, FALLING);
 
+  // NTC input
+  pinMode(NTC_in_pin, INPUT);
+
   // Ptt button and switch
   pinMode(Ptt_btn, INPUT_PULLUP);
   pinMode(RXTX_switch_pin, OUTPUT);
@@ -148,6 +163,7 @@ void setup()
   printFreq(frequency); // prints the frequency to the display
   printStep(freqInc);
   printVFO_BFO(frequency);
+  updateNTCTemperature();
 }
 
 // ##############################################################################################################################
@@ -158,6 +174,12 @@ void loop()
   {
     lastVbatMeasurementMs = millis();
     updateVoltage();
+  }
+
+  if (millis() - lastNTCMeasurementMs >= NTCMeasureInterval)
+  {
+    lastNTCMeasurementMs = millis();
+    updateNTCTemperature();
   }
 
   if (interrupt_encoder_switch_executed)
@@ -249,9 +271,9 @@ void updateVoltage()
 
 void printVoltage()
 {
-  if (voltage < 3.7 * 3)
+  if (voltage < 3.5 * 3)
   {
-    tft.setTextColor(tft.color565(255, 0, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+    tft.setTextColor(tft.color565(255, 81, 69), TFT_BLACK); // by setting the text background color you can update the text without flickering
   }
   else if (voltage > 3.7 * 3 && voltage <= 3.8 * 3)
   {
@@ -378,4 +400,15 @@ void updateFrequencies(unsigned long frequency)
 
   // Print Frequency: 14 350 . 000
   oneWireDisplay.printDouble((double)((double)frequency / (double)1000), 2, 0, SegmentBrightness); // Double, amount of digits after comma, starting pos, brightness
+}
+
+void updateNTCTemperature()
+{
+  tft.setTextColor(tft.color565(255, 144, 18),TFT_BLACK); // by setting the text background color you can update the text without flickering
+  tft.setFreeFont(FF7);
+  tft.setTextSize(1);
+  // tft.drawString(String(millis()), 0, 64);
+  char strBuffer[32];
+  snprintf(strBuffer, sizeof(strBuffer), "Amplifier Temp: %.1f°C", NTC_ADC2Temperature(analogRead(NTC_in_pin))); // prints the RX and TX status
+  tft.drawString(strBuffer, 0, 40);                                                            // prints the millis to position 430,0 and with the font #7 which looks good for text
 }
