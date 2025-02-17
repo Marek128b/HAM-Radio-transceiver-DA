@@ -44,8 +44,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.Manifest
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import at.htlklu.eintest.data.FunkyInfo
+import at.htlklu.eintest.ui.DataScreen
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -103,7 +109,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            BluetoothApp()
+            AppNavigation()
         }
 
         checkAndRequestBluetoothPermissions()
@@ -232,7 +238,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun connectToDevice(device: BluetoothDevice) {
+    private fun connectToDevice(device: BluetoothDevice, navController: NavController) {
         try {
             bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(deviceUUID)
             bluetoothAdapter?.cancelDiscovery() // Vermeide Verbindungsprobleme
@@ -243,6 +249,8 @@ class MainActivity : ComponentActivity() {
                 "Verbindung zu ${device.name} hergestellt!",
                 Toast.LENGTH_SHORT
             ).show()
+            navController.navigate("dataScreen") // Navigation zur DataScreen
+
         } catch (e: IOException) {
             e.printStackTrace()
             Log.e("Bluetooth", "Verbindungsfehler: ${e.message}")
@@ -265,34 +273,26 @@ class MainActivity : ComponentActivity() {
             val deviceAddress = deviceInfo.substringAfterLast("(").substringBefore(")")
             val device = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
                 ?: bluetoothAdapter?.getRemoteDevice(deviceAddress)
-
-            if (device != null) {
-                connectToDevice(device)
-            } else {
-                Toast.makeText(this, "Gerät nicht gefunden: $deviceInfo", Toast.LENGTH_SHORT).show()
-            }
         } catch (e: Exception) {
             e.printStackTrace()
             Log.e("Bluetooth", "Fehler bei Verbindung zu $deviceInfo: ${e.message}")
         }
     }
 
-    private fun sendHelloWorldToESP() {
+    private fun sendFunkyInfo() {
         try {
             if (bluetoothSocket?.isConnected == true) {
 
                 val jsonString = Json.encodeToString(
                     FunkyInfo(
                         true,
-                        true,
-                        false,
-                        true,
-                        true
+                        1234.3f,
+                        34.3f,
+                        "Lukas",
+                        "Call-Master",
+                        20.2f
                     )
                 ) + "\n"
-
-
-                //val jsonString = """{"getFrequency":true, "getName":true}""" + "\n"
 
                 outputStream?.write(jsonString.toByteArray(Charsets.UTF_8))
                 outputStream?.flush()
@@ -309,8 +309,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
-    private fun startListeningForData(receivedData: MutableState<List<String>>) {
+    private fun startListeningForData(receivedData: MutableState<String>) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val inputStream = bluetoothSocket?.inputStream
@@ -325,9 +324,10 @@ class MainActivity : ComponentActivity() {
                         val data = String(buffer, 0, bytesRead).trim()
                         if (data.isNotEmpty()) {
                             Log.d("Bluetooth", "Empfangene Daten: $data")
+
+                            // Setze nur den neuesten Teil der Daten (überschreibt den alten Wert)
                             withContext(Dispatchers.Main) {
-                                // Neue Daten an die Liste anhängen
-                                receivedData.value = receivedData.value + data
+                                receivedData.value = data // Der neueste Teil der empfangenen Daten
                             }
                         }
                     }
@@ -337,6 +337,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
 
     override fun onDestroy() {
         super.onDestroy()
@@ -349,10 +350,25 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun BluetoothApp() {
+    fun AppNavigation() {
+        val navController = rememberNavController()
+        val receivedData = remember { mutableStateOf("") }
+
+        NavHost(navController = navController, startDestination = "bluetoothScreen") {
+            composable("bluetoothScreen") {
+                BluetoothApp(navController, receivedData)
+            }
+            composable("dataScreen") {
+                DataScreen(navController, receivedData.value) // Übergeben der Daten
+            }
+        }
+    }
+
+
+    @Composable
+    fun BluetoothApp(navController: NavController, receivedData: MutableState<String>) {
         val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
         val scannedDevices = remember { mutableStateOf(listOf<String>()) }
-        val receivedData = remember { mutableStateOf(listOf<String>()) }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
 
         val gradientBrush = Brush.linearGradient(
@@ -369,6 +385,7 @@ class MainActivity : ComponentActivity() {
 
             Column(modifier = Modifier.fillMaxSize()) {
                 // Überschrift
+                /*
                 Text(
                     text = "Empfangene Daten:",
                     style = MaterialTheme.typography.titleLarge,
@@ -398,6 +415,8 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+
+                 */
 
                 LazyColumn(
                     modifier = Modifier
@@ -569,7 +588,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-
             // Hotbar bleibt unabhängig und unten sichtbar
             Box(
                 modifier = Modifier
@@ -588,18 +606,22 @@ class MainActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(modifier = Modifier
-                        .size(64.dp)
-                        .padding(4.dp), onClick = {
-                        selectedDevice?.let {
-                            connectToDevice(it)
-                            startListeningForData(receivedData)
-                        } ?: Toast.makeText(
-                            applicationContext,
-                            "Kein Gerät ausgewählt",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }) {
+                    //------------------------------------------Verbinden-----------------------------------------
+                    IconButton(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(4.dp),
+                        onClick = {
+                            selectedDevice?.let {
+                                connectToDevice(it, navController)
+                                startListeningForData(receivedData)
+                            } ?: Toast.makeText(
+                                applicationContext,
+                                "Kein Gerät ausgewählt",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.Rounded.Check,
                             contentDescription = "Verbinden",
@@ -607,6 +629,7 @@ class MainActivity : ComponentActivity() {
                             tint = Color.Blue
                         )
                     }
+                    //----------------------------------------------------Scannen--------------------------------------------------
                     IconButton(
                         modifier = Modifier
                             .size(64.dp)
@@ -629,11 +652,12 @@ class MainActivity : ComponentActivity() {
                         }
 
                     }
+                    //------------------------------------------------------------Senden-----------------------------------------------------
                     IconButton(
                         modifier = Modifier
                             .size(64.dp)
                             .padding(4.dp),
-                        onClick = { sendHelloWorldToESP() }) {
+                        onClick = { sendFunkyInfo() }) {
                         Icon(
                             imageVector = Icons.Rounded.Send,
                             contentDescription = "Senden",

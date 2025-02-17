@@ -4,9 +4,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class FunkyInfo(
-    val getFrequency: Boolean,
-    val getVoltage: Boolean,
-    val getName: Boolean,
-    val getCall: Boolean,
-    val getTemperature: Boolean
+    val op: Boolean,
+    val frequency: Float,
+    val voltage: Float,
+    val name: String,
+    val call: String,
+    val temperature: Float
 )
