@@ -19,7 +19,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
@@ -27,8 +26,6 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.Manifest
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -54,6 +50,18 @@ import at.htlklu.eintest.data.FunkyInfo
 import at.htlklu.eintest.ui.DataScreen
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
+import kotlin.math.log
+
 
 class MainActivity : ComponentActivity() {
 
@@ -84,7 +92,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-
     private val requestLocationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
@@ -95,7 +102,6 @@ class MainActivity : ComponentActivity() {
                 Toast.makeText(this, "Standortberechtigung verweigert", Toast.LENGTH_SHORT).show()
             }
         }
-
 
     private val enableBluetoothLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -240,16 +246,31 @@ class MainActivity : ComponentActivity() {
 
     private fun connectToDevice(device: BluetoothDevice, navController: NavController) {
         try {
+            // Überprüfen, ob eine bestehende Verbindung besteht
+            bluetoothSocket?.let { socket ->
+                if (socket.isConnected) {
+                    // Verbindung trennen, wenn sie aktiv ist
+                    socket.close()
+                    outputStream = null  // Setze den OutputStream zurück
+                    Toast.makeText(applicationContext, "Verbindung getrennt", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            // Erstelle eine neue Verbindung, wenn keine bestehende Verbindung mehr besteht
             bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(deviceUUID)
-            bluetoothAdapter?.cancelDiscovery() // Vermeide Verbindungsprobleme
-            bluetoothSocket?.connect()  // Verbinde
+            bluetoothAdapter?.cancelDiscovery()  // Vermeide Verbindungsprobleme
+            bluetoothSocket?.connect()  // Baue die Verbindung auf
             outputStream = bluetoothSocket?.outputStream
+
+            // Bestätigung der erfolgreichen Verbindung
             Toast.makeText(
                 applicationContext,
                 "Verbindung zu ${device.name} hergestellt!",
                 Toast.LENGTH_SHORT
             ).show()
-            navController.navigate("dataScreen") // Navigation zur DataScreen
+
+            // Navigiere zum DataScreen
+            navController.navigate("dataScreen")
 
         } catch (e: IOException) {
             e.printStackTrace()
@@ -259,6 +280,8 @@ class MainActivity : ComponentActivity() {
                 "Verbindungsfehler: ${e.message}",
                 Toast.LENGTH_SHORT
             ).show()
+
+            // Falls ein Fehler beim Schließen oder Verbinden auftritt, versuche den Socket zu schließen
             try {
                 bluetoothSocket?.close()
             } catch (closeException: IOException) {
@@ -318,16 +341,38 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
                 val buffer = ByteArray(1024)
+                var fullData = "" // String, der alle empfangenen Daten zusammenführt
+
                 while (bluetoothSocket?.isConnected == true) {
                     val bytesRead = inputStream.read(buffer)
                     if (bytesRead > 0) {
                         val data = String(buffer, 0, bytesRead).trim()
+
                         if (data.isNotEmpty()) {
                             Log.d("Bluetooth", "Empfangene Daten: $data")
+                            fullData += data // Empfange und speichere die Daten
 
-                            // Setze nur den neuesten Teil der Daten (überschreibt den alten Wert)
-                            withContext(Dispatchers.Main) {
-                                receivedData.value = data // Der neueste Teil der empfangenen Daten
+                            // Überprüfe, ob der JSON-String gültig ist
+                            if (fullData.isNotEmpty() && fullData.startsWith("{") && fullData.endsWith(
+                                    "}"
+                                )
+                            ) {
+                                // Update des States auf dem Main-Thread
+                                withContext(Dispatchers.Main) {
+                                    receivedData.value =
+                                        fullData // Der neueste Teil der empfangenen Daten
+                                }
+
+                                // Versuche, den JSON-String zu deserialisieren
+                                try {
+                                    val funkyInfo = Json.decodeFromString<FunkyInfo>(fullData)
+                                    Log.d("Bluetooth", "Erfolgreich deserialisiert: $funkyInfo")
+                                } catch (e: Exception) {
+                                    Log.e("Bluetooth", "Fehler beim Deserialisieren: ${e.message}")
+                                }
+
+                                fullData =
+                                    "" // Leere den String nach der erfolgreichen Verarbeitung
                             }
                         }
                     }
@@ -337,7 +382,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
 
     override fun onDestroy() {
         super.onDestroy()
@@ -353,22 +397,133 @@ class MainActivity : ComponentActivity() {
     fun AppNavigation() {
         val navController = rememberNavController()
         val receivedData = remember { mutableStateOf("") }
+        val scannedDevices = remember { mutableStateOf(listOf<String>()) }
 
-        NavHost(navController = navController, startDestination = "bluetoothScreen") {
-            composable("bluetoothScreen") {
-                BluetoothApp(navController, receivedData)
+        var isConnected by remember { mutableStateOf(false) }
+
+        // Coroutine, die alle paar Sekunden den Verbindungsstatus überprüft
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(1000)  // Alle 1 Sekunde den Status prüfen
+                bluetoothSocket?.let {
+                    isConnected = it.isConnected  // Überprüft, ob die Verbindung besteht
+                }
+                Log.e("BLUETOOTH",isConnected.toString())
             }
-            composable("dataScreen") {
-                DataScreen(navController, receivedData.value) // Übergeben der Daten
+        }
+
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            // NavHost für die Navigation zwischen den Screens
+            NavHost(navController = navController, startDestination = "bluetoothScreen") {
+                composable("bluetoothScreen") {
+                    BluetoothApp(navController, receivedData, scannedDevices)
+                }
+                composable("dataScreen") {
+                    DataScreen(navController, receivedData.value, isConnected) // Übergeben der Daten
+                }
+            }
+
+            // Hotbar bleibt immer am unteren Rand sichtbar
+            Hotbar(navController, scannedDevices, receivedData)
+        }
+    }
+
+    @Composable
+    fun Hotbar(
+        navController: NavController,
+        scannedDevices: MutableState<List<String>>,
+        receivedData: MutableState<String>
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.Bottom // Hält alles am unteren Ende der Box
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(40.dp))
+                    .background(Color(0xAFFFFFFF))
+            ) {
+
+                // Deine Inhalte wie Buttons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    //------------------------------------------Verbinden-----------------------------------------
+                    IconButton(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(4.dp),
+                        onClick = {
+                            selectedDevice?.let {
+                                connectToDevice(it, navController)
+                                startListeningForData(receivedData)
+                            } ?: Toast.makeText(
+                                applicationContext,
+                                "Kein Gerät ausgewählt",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = "Verbinden",
+                            modifier = Modifier.size(35.dp),
+                            tint = Color.Blue
+                        )
+                    }
+                    //----------------------------------------------------Scannen--------------------------------------------------
+                    IconButton(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(4.dp),
+                        onClick = { startScanningDevices(scannedDevices) }) {
+                        if (isScanning) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = "Scannen",
+                                modifier = Modifier.size(35.dp),
+                                tint = Color.Red
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = "Scannen",
+                                modifier = Modifier.size(35.dp),
+                                tint = Color(0xFF199A40)
+                            )
+                        }
+                    }
+                    //------------------------------------------------------------Senden-----------------------------------------------------
+                    IconButton(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .padding(4.dp),
+                        onClick = { sendFunkyInfo() }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Send,
+                            contentDescription = "Senden",
+                            modifier = Modifier.size(35.dp),
+                            tint = Color.Blue
+                        )
+                    }
+                }
             }
         }
     }
 
 
     @Composable
-    fun BluetoothApp(navController: NavController, receivedData: MutableState<String>) {
+    fun BluetoothApp(navController: NavController, receivedData: MutableState<String>, scannedDevices: MutableState<List<String>>) {
         val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
-        val scannedDevices = remember { mutableStateOf(listOf<String>()) }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
 
         val gradientBrush = Brush.linearGradient(
@@ -588,6 +743,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+
+            /*
             // Hotbar bleibt unabhängig und unten sichtbar
             Box(
                 modifier = Modifier
@@ -667,6 +824,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+
+             */
 
 
         }

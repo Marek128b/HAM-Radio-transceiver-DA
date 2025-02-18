@@ -1,5 +1,6 @@
 package at.htlklu.eintest.ui
 
+import android.bluetooth.BluetoothSocket
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,16 +16,17 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import at.htlklu.eintest.data.FunkyInfo
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.decodeFromString
 
 @Composable
-fun DataScreen(navController: NavController, receivedData: String) {
+fun DataScreen(navController: NavController, receivedData: String, isConnected: Boolean?) {
 
     val gradientBrush = Brush.linearGradient(
         colors = listOf(Color(0xFF11144F), Color(0xFF1F4596)),
         start = androidx.compose.ui.geometry.Offset(0f, 0f),
         end = androidx.compose.ui.geometry.Offset(1500f, 1500f)
     )
+
+    if (isConnected == false) navController.navigate("bluetoothScreen")
 
     Box(
         modifier = Modifier
@@ -42,14 +44,35 @@ fun DataScreen(navController: NavController, receivedData: String) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            //val funkyInfo: FunkyInfo = Json.decodeFromString(receivedData)
+            // Überprüfe, ob die Daten gültig sind, bevor sie deserialisiert werden
+            var funkyInfo: FunkyInfo? = null
+            if (receivedData.isNotEmpty()) {
+                try {
+                    funkyInfo = Json.decodeFromString<FunkyInfo>(receivedData)
+                    Log.d("DataScreen", "Erfolgreich deserialisiert: $funkyInfo")
+                } catch (e: Exception) {
+                    Log.e("DataScreen", "Fehler bei der Deserialisierung der Daten: ${e.message}")
+                }
+            }
 
-            // Anzeigen der empfangenen Daten
-            Text(
-                text = receivedData,
-                fontSize = 18.sp,
-                color = Color.White
-            )
+            // Wenn die Deserialisierung erfolgreich war, zeige die Werte an
+            if (funkyInfo != null) {
+                // Anzeigen der deserialisierten Werte
+                Text(
+                    text = "Name: ${funkyInfo.name}\n" +
+                            "Frequenz: ${funkyInfo.frequency}\n" +
+                            "Volt: ${funkyInfo.voltage}\n" ,
+                    fontSize = 18.sp,
+                    color = Color.White
+                )
+            } else {
+                // Falls die Deserialisierung fehlschlägt, zeige den rohen empfangenen JSON-String an
+                Text(
+                    text = "Fehlerhafte Daten: $receivedData",
+                    fontSize = 18.sp,
+                    color = Color.White
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
 

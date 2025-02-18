@@ -72,5 +72,9 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("androidx.navigation:navigation-compose:2.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("androidx.compose.ui:ui:1.1.0")  // Oder die neueste Version
+    implementation("androidx.compose.foundation:foundation:1.1.0")  // Das ist der benötigte Foundation-Modul
+    implementation("androidx.compose.material3:material3:1.0.0") // Optional, falls Material3 verwendet wird
+
 
 }
