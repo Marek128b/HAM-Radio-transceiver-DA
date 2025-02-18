@@ -24,7 +24,13 @@ void loop()
   }
   if (SerialBT.available())
   {
-    Serial.write(SerialBT.read());
+    //Serial.write(SerialBT.read());
+    doc.clear();
+    String s_in = SerialBT.readString();
+    Serial.println(s_in);
+    deserializeJson(doc, s_in);
+    
+    serializeJsonPretty(doc, Serial);
   }
 
   if (millis() - lastMillis >= interval)
