@@ -1,18 +1,40 @@
 Request based system.
 
-- [[#Get Functions with Return|Get Functions with Return]]
-	- [[#Get Functions with Return#Frequency|Frequency]]
-	- [[#Get Functions with Return#Voltage|Voltage]]
-	- [[#Get Functions with Return#Name|Name]]
-	- [[#Get Functions with Return#Call|Call]]
-	- [[#Get Functions with Return#Temperature|Temperature]]
-- [[#Example|Example]]
+**Table of content**
+- [Get Functions with Return](#get-functions-with-return)
+- [Operations](#operations)
+	- [Frequency](#frequency)
+	- [Voltage](#voltage)
+	- [Name](#name)
+	- [Call](#call)
+	- [Temperature](#temperature)
+- [Example](#example)
+	- [Get Value](#get-value)
+	- [Set Value](#set-value)
 
 ## Get Functions with Return
 
+## Operations
+Wenn op = false/0:
+```JSON
+{"op":0}
+```
+get Values. 
+<br>
+
+--- 
+
+Wenn op = true/1:
+```JSON
+{"op":1}
+```
+sets Values.
+
+---
+
 ### Frequency
 ```JSON
-{"getFrequency":1}
+{"op":0, "Frequency":1}
 ```
 Returns:
 ```JSON
@@ -20,40 +42,47 @@ Returns:
 ```
 ### Voltage
 ```JSON
-{"getVoltage":1}
+{"op":0, "Voltage":1}
 ```
 Returns battery voltage:
 ```JSON
-{"voltage":11.1}
+{"Voltage":11.1}
 ```
 ### Name
 ```JSON
-{"getName":1}
+{"op":0, "Name":"0"}
 ```
 Returns Operator Name:
 ```JSON
-{"name":"Georg"}
+{"Name":"Georg"}
 ```
 ### Call
 ```JSON
-{"getCall":1}
+{"op":0, "Call":"0"}
 ```
 Returns Operator Call sign:
 ```JSON
-{"call":"OE8GKE"}
+{"Call":"OE8GKE"}
 ```
 ### Temperature
 ```JSON
-{"getTemperature":1}
+{"op":0, "Temperature":1}
 ```
 Returns PA temperature in C:
 ```JSON
-{"temperature":56.2}
+{"Temperature":56.2}
 ```
 
 ## Example
+### Get Value
 ```mermaid
 sequenceDiagram
-App->>FunkY: {"getName":1}
-FunkY->>App: {"name":"Georg"}
+App->>FunkY: {"op":0, "Name":"0"}
+FunkY->>App: {"Name":"Georg"}
+```
+### Set Value 
+```mermaid
+sequenceDiagram
+App->>FunkY: {"op":1, "Name":"Marek"}
+FunkY->>App: {"Name":"Marek"}
 ```
