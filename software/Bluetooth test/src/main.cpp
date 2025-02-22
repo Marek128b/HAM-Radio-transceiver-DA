@@ -52,9 +52,21 @@ void handleBT()
   {
     // Serial.write(SerialBT.read());
     doc.clear();
-    String s_in = SerialBT.readString();
-    Serial.println(s_in);
-    deserializeJson(doc, s_in);
+    String s_in;
+    while (SerialBT.available())
+    {
+      char incomingChar = SerialBT.read();
+      if (incomingChar == '\n')
+      { // End of message
+        Serial.println("Received: " + s_in);
+        deserializeJson(doc, s_in);
+        s_in = ""; // Clear buffer
+      }
+      else
+      {
+        s_in += incomingChar;
+      }
+    }
 
     if (doc["op"]) // set value code
     {
