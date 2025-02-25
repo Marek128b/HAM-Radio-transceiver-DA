@@ -41,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.Manifest
-import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -55,12 +54,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
-import kotlin.math.log
+import kotlinx.coroutines.flow.map
 
 
 class MainActivity : ComponentActivity() {
@@ -246,16 +246,6 @@ class MainActivity : ComponentActivity() {
 
     private fun connectToDevice(device: BluetoothDevice, navController: NavController) {
         try {
-            // Überprüfen, ob eine bestehende Verbindung besteht
-            bluetoothSocket?.let { socket ->
-                if (socket.isConnected) {
-                    // Verbindung trennen, wenn sie aktiv ist
-                    socket.close()
-                    outputStream = null  // Setze den OutputStream zurück
-                    Toast.makeText(applicationContext, "Verbindung getrennt", Toast.LENGTH_SHORT).show()
-                }
-            }
-
             // Erstelle eine neue Verbindung, wenn keine bestehende Verbindung mehr besteht
             bluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(deviceUUID)
             bluetoothAdapter?.cancelDiscovery()  // Vermeide Verbindungsprobleme
@@ -302,20 +292,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun sendFunkyInfo() {
+    private fun sendFunkyInfo(op: Boolean) {
         try {
             if (bluetoothSocket?.isConnected == true) {
-
-                val jsonString = Json.encodeToString(
-                    FunkyInfo(
-                        true,
-                        1234.3f,
-                        34.3f,
-                        "Lukas",
-                        "Call-Master",
-                        20.2f
-                    )
-                ) + "\n"
+                FunkyRepository.funkyInfo.op = op
+                val jsonString = Json.encodeToString(FunkyRepository.funkyInfo) + "\n"
 
                 outputStream?.write(jsonString.toByteArray(Charsets.UTF_8))
                 outputStream?.flush()
@@ -393,34 +374,46 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    object FunkyRepository {
+        var funkyInfo: FunkyInfo = FunkyInfo(
+            false,
+            10f,
+            10f,
+            "Default",
+            "Default",
+            10f
+        )
+    }
+
+    @Composable
+    fun ObserveCurrentScreen(navController: NavController): String? {
+        val currentRoute by navController.currentBackStackEntryFlow
+            .map { it?.destination?.route }
+            .collectAsState(initial = "home") // Standard-Route setzen, falls nichts vorhanden ist
+
+        LaunchedEffect(Unit) {
+            while (true) {  // Endlosschleife, läuft während die Composable existiert
+                Log.d("Navigation", "Aktueller Screen: $currentRoute")
+                delay(1000L)  // Warte 1 Sekunde bevor erneut überprüft wird
+            }
+        }
+        return currentRoute
+    }
+
     @Composable
     fun AppNavigation() {
         val navController = rememberNavController()
         val receivedData = remember { mutableStateOf("") }
         val scannedDevices = remember { mutableStateOf(listOf<String>()) }
 
-        var isConnected by remember { mutableStateOf(false) }
-
-        // Coroutine, die alle paar Sekunden den Verbindungsstatus überprüft
-        LaunchedEffect(Unit) {
-            while (true) {
-                delay(1000)  // Alle 1 Sekunde den Status prüfen
-                bluetoothSocket?.let {
-                    isConnected = it.isConnected  // Überprüft, ob die Verbindung besteht
-                }
-                Log.e("BLUETOOTH",isConnected.toString())
-            }
-        }
-
-
         Box(modifier = Modifier.fillMaxSize()) {
             // NavHost für die Navigation zwischen den Screens
             NavHost(navController = navController, startDestination = "bluetoothScreen") {
                 composable("bluetoothScreen") {
-                    BluetoothApp(navController, receivedData, scannedDevices)
+                    BluetoothApp(receivedData, scannedDevices)
                 }
                 composable("dataScreen") {
-                    DataScreen(navController, receivedData.value, isConnected) // Übergeben der Daten
+                    DataScreen(navController, receivedData.value) // Übergeben der Daten
                 }
             }
 
@@ -433,7 +426,7 @@ class MainActivity : ComponentActivity() {
     fun Hotbar(
         navController: NavController,
         scannedDevices: MutableState<List<String>>,
-        receivedData: MutableState<String>
+        receivedData: MutableState<String>,
     ) {
         Column(
             modifier = Modifier
@@ -466,6 +459,7 @@ class MainActivity : ComponentActivity() {
                             selectedDevice?.let {
                                 connectToDevice(it, navController)
                                 startListeningForData(receivedData)
+                                sendFunkyInfo(false)
                             } ?: Toast.makeText(
                                 applicationContext,
                                 "Kein Gerät ausgewählt",
@@ -481,33 +475,61 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     //----------------------------------------------------Scannen--------------------------------------------------
-                    IconButton(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .padding(4.dp),
-                        onClick = { startScanningDevices(scannedDevices) }) {
-                        if (isScanning) {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = "Scannen",
-                                modifier = Modifier.size(35.dp),
-                                tint = Color.Red
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = "Scannen",
-                                modifier = Modifier.size(35.dp),
-                                tint = Color(0xFF199A40)
-                            )
+                    //scannen----------------------------------------
+                    when (ObserveCurrentScreen(navController)) {
+                        "bluetoothScreen" -> {
+                            IconButton(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .padding(4.dp),
+                                onClick = { startScanningDevices(scannedDevices) }) {
+                                if (isScanning) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Search,
+                                        contentDescription = "Scannen",
+                                        modifier = Modifier.size(35.dp),
+                                        tint = Color.Red
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Search,
+                                        contentDescription = "Scannen",
+                                        modifier = Modifier.size(35.dp),
+                                        tint = Color(0xFF199A40)
+                                    )
+                                }
+                            }
+                        }
+
+                        //refresh----------------------------------------
+                        "dataScreen" -> {
+                            IconButton(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .padding(4.dp),
+                                onClick = {
+                                    sendFunkyInfo(false)
+                                }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Refresh,
+                                    contentDescription = "Refresh",
+                                    modifier = Modifier.size(35.dp),
+                                    tint = Color.Blue
+                                )
+
+                            }
                         }
                     }
+
+
                     //------------------------------------------------------------Senden-----------------------------------------------------
                     IconButton(
                         modifier = Modifier
                             .size(64.dp)
                             .padding(4.dp),
-                        onClick = { sendFunkyInfo() }) {
+                        onClick = {
+                            sendFunkyInfo(true)
+                        }) {
                         Icon(
                             imageVector = Icons.Rounded.Send,
                             contentDescription = "Senden",
@@ -520,9 +542,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     @Composable
-    fun BluetoothApp(navController: NavController, receivedData: MutableState<String>, scannedDevices: MutableState<List<String>>) {
+    fun BluetoothApp(
+        receivedData: MutableState<String>,
+        scannedDevices: MutableState<List<String>>
+    ) {
         val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
 
@@ -539,40 +563,6 @@ class MainActivity : ComponentActivity() {
         ) {
 
             Column(modifier = Modifier.fillMaxSize()) {
-                // Überschrift
-                /*
-                Text(
-                    text = "Empfangene Daten:",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                        .padding(8.dp)
-                )
-
-                // LazyColumn zur Anzeige der empfangenen Daten
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f) // Verteilt den verfügbaren Platz
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(receivedData.value.reversed()) { data ->
-                        Text(
-                            text = data,
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    }
-                }
-
-                 */
-
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()

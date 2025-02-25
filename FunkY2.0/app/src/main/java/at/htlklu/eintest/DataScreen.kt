@@ -1,11 +1,11 @@
 package at.htlklu.eintest.ui
 
-import android.bluetooth.BluetoothSocket
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -14,11 +14,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import at.htlklu.eintest.MainActivity
 import at.htlklu.eintest.data.FunkyInfo
 import kotlinx.serialization.json.Json
 
 @Composable
-fun DataScreen(navController: NavController, receivedData: String, isConnected: Boolean?) {
+fun DataScreen(navController: NavController, receivedData: String) {
 
     val gradientBrush = Brush.linearGradient(
         colors = listOf(Color(0xFF11144F), Color(0xFF1F4596)),
@@ -26,7 +27,15 @@ fun DataScreen(navController: NavController, receivedData: String, isConnected: 
         end = androidx.compose.ui.geometry.Offset(1500f, 1500f)
     )
 
-    if (isConnected == false) navController.navigate("bluetoothScreen")
+    // Überprüfe, ob die Daten gültig sind, bevor sie deserialisiert werden
+    if (receivedData.isNotEmpty()) {
+        try {
+            MainActivity.FunkyRepository.funkyInfo = Json.decodeFromString<FunkyInfo>(receivedData)
+            Log.d("DataScreen", "Erfolgreich deserialisiert: ${MainActivity.FunkyRepository.funkyInfo}")
+        } catch (e: Exception) {
+            Log.e("DataScreen", "Fehler bei der Deserialisierung der Daten: ${e.message}")
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -44,24 +53,14 @@ fun DataScreen(navController: NavController, receivedData: String, isConnected: 
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Überprüfe, ob die Daten gültig sind, bevor sie deserialisiert werden
-            var funkyInfo: FunkyInfo? = null
-            if (receivedData.isNotEmpty()) {
-                try {
-                    funkyInfo = Json.decodeFromString<FunkyInfo>(receivedData)
-                    Log.d("DataScreen", "Erfolgreich deserialisiert: $funkyInfo")
-                } catch (e: Exception) {
-                    Log.e("DataScreen", "Fehler bei der Deserialisierung der Daten: ${e.message}")
-                }
-            }
-
             // Wenn die Deserialisierung erfolgreich war, zeige die Werte an
-            if (funkyInfo != null) {
+            if (MainActivity.FunkyRepository.funkyInfo != null) {
                 // Anzeigen der deserialisierten Werte
                 Text(
-                    text = "Name: ${funkyInfo.name}\n" +
-                            "Frequenz: ${funkyInfo.frequency}\n" +
-                            "Volt: ${funkyInfo.voltage}\n" ,
+                    text = "Name: ${MainActivity.FunkyRepository.funkyInfo.name}\n" +
+                            "Frequenz: ${MainActivity.FunkyRepository.funkyInfo.frequency}\n" +
+                            "Volt: ${MainActivity.FunkyRepository.funkyInfo.voltage}\n" +
+                            "Temperatur: ${MainActivity.FunkyRepository.funkyInfo.temperature}\n" ,
                     fontSize = 18.sp,
                     color = Color.White
                 )
