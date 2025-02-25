@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -280,6 +281,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun disconnectFromDevice(bluetoothSocket: BluetoothSocket?, navController: NavController) {
+        try {
+            bluetoothSocket?.close()
+            navController.navigate("bluetoothScreen")
+            Log.d("Bluetooth", "Verbindung erfolgreich getrennt.")
+        } catch (e: IOException) {
+            Log.e("Bluetooth", "Fehler beim Trennen der Verbindung", e)
+        }
+    }
+
     private fun connectToDeviceFromScannedList(deviceInfo: String) {
         try {
             // Extrahiere die Geräteadresse aus dem String (z. B. "DeviceName (00:11:22:33:44:55)")
@@ -302,7 +313,7 @@ class MainActivity : ComponentActivity() {
                 outputStream?.flush()
 
                 Log.d("Bluetooth", "JSON gesendet: $jsonString")
-                Toast.makeText(this, "Nachricht gesendet: $jsonString", Toast.LENGTH_SHORT).show()
+                //Toast.makeText(this, "Nachricht gesendet: $jsonString", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Bluetooth ist nicht verbunden", Toast.LENGTH_SHORT).show()
             }
@@ -375,13 +386,15 @@ class MainActivity : ComponentActivity() {
     }
 
     object FunkyRepository {
-        var funkyInfo: FunkyInfo = FunkyInfo(
-            false,
-            10f,
-            10f,
-            "Default",
-            "Default",
-            10f
+        var funkyInfo by mutableStateOf(
+            FunkyInfo(
+                false,
+                14f,
+                10f,
+                "Default-Name",
+                "Default-Call",
+                15f
+            )
         )
     }
 
@@ -451,32 +464,64 @@ class MainActivity : ComponentActivity() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     //------------------------------------------Verbinden-----------------------------------------
-                    IconButton(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .padding(4.dp),
-                        onClick = {
-                            selectedDevice?.let {
-                                connectToDevice(it, navController)
-                                startListeningForData(receivedData)
-                                sendFunkyInfo(false)
-                            } ?: Toast.makeText(
-                                applicationContext,
-                                "Kein Gerät ausgewählt",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                    when(ObserveCurrentScreen(navController)){
+                        //Cennecten----------------------------------------
+                        "bluetoothScreen"->{
+                            IconButton(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .padding(4.dp),
+                                onClick = {
+                                    selectedDevice?.let {
+                                        connectToDevice(it, navController)
+                                        startListeningForData(receivedData)
+                                        sendFunkyInfo(false)
+                                    } ?: Toast.makeText(
+                                        applicationContext,
+                                        "Kein Gerät ausgewählt",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = "Verbinden",
+                                    modifier = Modifier.size(35.dp),
+                                    tint = Color.Blue
+                                )
+                            }
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = "Verbinden",
-                            modifier = Modifier.size(35.dp),
-                            tint = Color.Blue
-                        )
+                        //Disconnecten----------------------------------------
+                        "dataScreen"->{
+                            IconButton(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .padding(4.dp),
+                                onClick = {
+                                    selectedDevice?.let {
+                                        disconnectFromDevice(bluetoothSocket, navController)
+                                    } ?: Toast.makeText(
+                                        applicationContext,
+                                        "Kein Gerät ausgewählt",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Verbinden",
+                                    modifier = Modifier.size(35.dp),
+                                    tint = Color.Blue
+                                )
+                            }
+                        }
+
                     }
+
+
                     //----------------------------------------------------Scannen--------------------------------------------------
-                    //scannen----------------------------------------
                     when (ObserveCurrentScreen(navController)) {
+                        //scannen----------------------------------------
                         "bluetoothScreen" -> {
                             IconButton(
                                 modifier = Modifier
@@ -520,7 +565,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-
 
                     //------------------------------------------------------------Senden-----------------------------------------------------
                     IconButton(
