@@ -404,12 +404,6 @@ class MainActivity : ComponentActivity() {
             .map { it?.destination?.route }
             .collectAsState(initial = "home") // Standard-Route setzen, falls nichts vorhanden ist
 
-        LaunchedEffect(Unit) {
-            while (true) {  // Endlosschleife, läuft während die Composable existiert
-                Log.d("Navigation", "Aktueller Screen: $currentRoute")
-                delay(1000L)  // Warte 1 Sekunde bevor erneut überprüft wird
-            }
-        }
         return currentRoute
     }
 

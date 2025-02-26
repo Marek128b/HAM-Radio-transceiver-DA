@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import at.htlklu.eintest.MainActivity
 import at.htlklu.eintest.data.FunkyInfo
-import kotlinx.serialization.decodeFromString
+import java.util.Locale
 import kotlinx.serialization.json.Json
 
 @Composable
@@ -35,14 +35,24 @@ fun DataScreen(navController: NavController, receivedData: String) {
         end = androidx.compose.ui.geometry.Offset(1500f, 1500f)
     )
 
+
     if (receivedData.isNotEmpty()) {
         try {
-            MainActivity.FunkyRepository.funkyInfo = Json.decodeFromString<FunkyInfo>(receivedData)
-            Log.d("DataScreen", "Erfolgreich deserialisiert: ${MainActivity.FunkyRepository.funkyInfo}")
+            // JSON-Daten in FunkyInfo umwandeln
+            val parsedFunkyInfo = Json.decodeFromString<FunkyInfo>(receivedData)
+
+            // Neuen FunkyInfo-Wert mit der formatierten Frequenz speichern
+            MainActivity.FunkyRepository.funkyInfo = parsedFunkyInfo
+
+            Log.d(
+                "DataScreen",
+                "Erfolgreich deserialisiert: ${MainActivity.FunkyRepository.funkyInfo}"
+            )
         } catch (e: Exception) {
             Log.e("DataScreen", "Fehler bei der Deserialisierung der Daten: ${e.message}")
         }
     }
+
 
     Box(
         modifier = Modifier
@@ -130,7 +140,6 @@ fun DataScreen(navController: NavController, receivedData: String) {
                     }
                 }
 
-                // Box für Frequenz – hier wird das FrequencyLock (Zahlenrad) verwendet
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -147,15 +156,11 @@ fun DataScreen(navController: NavController, receivedData: String) {
                         contentAlignment = Alignment.Center
                     ) {
                         FrequencyLock(
-                            frequency = MainActivity.FunkyRepository.funkyInfo.frequency,
-                            onFrequencyChange = { newFreq ->
-                                MainActivity.FunkyRepository.funkyInfo =
-                                    MainActivity.FunkyRepository.funkyInfo.copy(frequency = newFreq)
-                            },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
+
 
                 // Box für Temperatur
                 Box(
@@ -190,23 +195,110 @@ fun DataScreen(navController: NavController, receivedData: String) {
 }
 
 
+@Composable
+fun FrequencyLock(
+    modifier: Modifier = Modifier
+) {
+    var currentFrequency by remember { mutableStateOf(MainActivity.FunkyRepository.funkyInfo.frequency) }
 
-// NumberWheel zeigt einen einzelnen Ziffernwert an, den du über die Pfeile ändern kannst.
+    Log.d("DEBUG", "$currentFrequency")
+
+    val formattedFrequency = String.format(Locale.US, "%.4f", currentFrequency) // Immer 4 Nachkommastellen
+    val parts = formattedFrequency.split(".") // Trennen in Vorkomma- und Nachkommazahlen
+
+// Stelle sicher, dass die Nachkommastellen genau 4 Zeichen lang sind
+    val decimalPart = parts.getOrNull(1)?.padEnd(4, '0') ?: "0000" // Falls kürzer, mit Nullen auffüllen
+
+    val integerPart = parts[0].map { it.toString().toInt() }
+    var decimalDigits by remember { mutableStateOf(decimalPart.map { it.toString().toInt() }) }
+
+    Log.d("DEBUG", "Formatted Frequency: $formattedFrequency")
+    Log.d("DEBUG", "Decimal Part: $decimalPart")
+
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        integerPart.forEach { digit ->
+            Box(
+                modifier = Modifier.width(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = digit.toString(),
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        Box(modifier = Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text = ",",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        decimalDigits.forEachIndexed { index, digit ->
+            if (index == 3) {
+                Box(modifier = Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = ".",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            NumberWheel(
+                value = digit,
+                onValueChange = { newDigit ->
+                    val newDigits = decimalDigits.toMutableList().apply { this[index] = newDigit }
+                    decimalDigits = newDigits
+
+                    val newFrequencyString = "${integerPart.joinToString("")}.${newDigits.joinToString("")}"
+                    val newFrequency = newFrequencyString.toFloat()
+
+                    // **Direkt speichern in FunkyRepository und UI updaten**
+                    MainActivity.FunkyRepository.funkyInfo.frequency = newFrequency
+                    currentFrequency = newFrequency  // **UI-Refresh sicherstellen**
+                },
+                modifier = Modifier.width(40.dp)
+            )
+        }
+    }
+}
+
 @Composable
 fun NumberWheel(
     value: Int,
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var displayedValue by remember { mutableStateOf(value) }
+
+    LaunchedEffect(value) {
+        displayedValue = value // **Sorgt dafür, dass NumberWheel immer den aktuellen Wert anzeigt**
+    }
+
     Column(
-        modifier = modifier,
+        modifier = modifier.width(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         IconButton(onClick = {
-            // Bei 9 wieder auf 0 setzen, ansonsten +1
-            val newValue = if (value == 9) 0 else value + 1
-            onValueChange(newValue)
+            val newValue = if (displayedValue == 9) 0 else displayedValue + 1
+            displayedValue = newValue
+            onValueChange(newValue) // **Sofort speichern**
         }) {
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowUp,
@@ -215,16 +307,16 @@ fun NumberWheel(
             )
         }
         Text(
-            text = value.toString(),
+            text = displayedValue.toString(),
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
             textAlign = TextAlign.Center
         )
         IconButton(onClick = {
-            // Bei 0 zu 9 setzen, ansonsten -1
-            val newValue = if (value == 0) 9 else value - 1
-            onValueChange(newValue)
+            val newValue = if (displayedValue == 0) 9 else displayedValue - 1
+            displayedValue = newValue
+            onValueChange(newValue) // **Sofort speichern**
         }) {
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowDown,
@@ -235,210 +327,6 @@ fun NumberWheel(
     }
 }
 
-// FrequencyLock teilt den Frequenzwert in seine einzelnen Ziffern auf und zeigt für jede ein NumberWheel an.
-@Composable
-fun FrequencyLock(
-    frequency: Float,
-    onFrequencyChange: (Float) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // Frequenz als ganzzahligen Wert und als 4-stelligen String (ggf. mit führenden Nullen)
-    val freqInt = frequency.toInt()
-    val freqString = freqInt.toString().padStart(4, '0')
-    var digits by remember { mutableStateOf(freqString.map { it.toString().toInt() }) }
 
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        digits.forEachIndexed { index, digit ->
-            NumberWheel(
-                value = digit,
-                onValueChange = { newDigit ->
-                    val newDigits = digits.toMutableList().apply { this[index] = newDigit }
-                    digits = newDigits
-                    // Zusammensetzen des neuen Frequenz-Strings und Umwandlung in Float
-                    val newFreq = newDigits.joinToString(separator = "").toInt().toFloat()
-                    onFrequencyChange(newFreq)
-                },
-                modifier = Modifier.width(50.dp)
-            )
-        }
-    }
-}
-
-
-/*
-
-
-@Composable
-fun DataScreen(navController: NavController, receivedData: String) {
-
-    val gradientBrush = Brush.linearGradient(
-        colors = listOf(Color(0xFF11144F), Color(0xFF1F4596)),
-        start = androidx.compose.ui.geometry.Offset(0f, 0f),
-        end = androidx.compose.ui.geometry.Offset(1500f, 1500f)
-    )
-
-    // Überprüfe, ob die Daten gültig sind, bevor sie deserialisiert werden
-    if (receivedData.isNotEmpty()) {
-        try {
-            MainActivity.FunkyRepository.funkyInfo = Json.decodeFromString<FunkyInfo>(receivedData)
-            Log.d(
-                "DataScreen",
-                "Erfolgreich deserialisiert: ${MainActivity.FunkyRepository.funkyInfo}"
-            )
-        } catch (e: Exception) {
-            Log.e("DataScreen", "Fehler bei der Deserialisierung der Daten: ${e.message}")
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(gradientBrush), // Grüner Hintergrund für erfolgreichen Datenaustausch
-        contentAlignment = Alignment.Center
-    ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            val spacing = 16.dp
-            val squareSize = (maxWidth - spacing) / 2
-
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(spacing)
-            ) {
-                // Obere Zeile mit 2 Quadraten
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(squareSize)
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(Color(0x11FFFFFF))
-                            .padding(5.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0x050000000)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = MainActivity.FunkyRepository.funkyInfo.name,
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = MainActivity.FunkyRepository.funkyInfo.call,
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(squareSize)
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(Color(0x11FFFFFF))
-                            .padding(5.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0x050000000)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = MainActivity.FunkyRepository.funkyInfo.voltage.toString(),
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Erstes Rechteck
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(squareSize)
-                        .clip(RoundedCornerShape(25.dp))
-                        .background(Color(0x11FFFFFF))
-                        .padding(5.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0x050000000)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = MainActivity.FunkyRepository.funkyInfo.frequency.toString(),
-                                color = Color.White,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                // Zweites Rechteck
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(squareSize)
-                        .clip(RoundedCornerShape(25.dp))
-                        .background(Color(0x11FFFFFF))
-                        .padding(5.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0x050000000)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = MainActivity.FunkyRepository.funkyInfo.temperature.toString(),
-                                color = Color.White,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-
- */
 
 //14,000 000 MHz - 14,350 000 MHz in 100 Hz schritten
