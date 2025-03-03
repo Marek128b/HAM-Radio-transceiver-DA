@@ -333,7 +333,7 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
                 val buffer = ByteArray(1024)
-                var fullData = "" // String, der alle empfangenen Daten zusammenführt
+                var fullData = "" // String, der alle empfangenen Daten speichert
 
                 while (bluetoothSocket?.isConnected == true) {
                     val bytesRead = inputStream.read(buffer)
@@ -342,29 +342,32 @@ class MainActivity : ComponentActivity() {
 
                         if (data.isNotEmpty()) {
                             Log.d("Bluetooth", "Empfangene Daten: $data")
-                            fullData += data // Empfange und speichere die Daten
+                            fullData += data // Daten an bereits empfangene anhängen
 
-                            // Überprüfe, ob der JSON-String gültig ist
-                            if (fullData.isNotEmpty() && fullData.startsWith("{") && fullData.endsWith(
-                                    "}"
-                                )
-                            ) {
-                                // Update des States auf dem Main-Thread
-                                withContext(Dispatchers.Main) {
-                                    receivedData.value =
-                                        fullData // Der neueste Teil der empfangenen Daten
-                                }
-
-                                // Versuche, den JSON-String zu deserialisieren
+                            // Prüfen, ob der JSON-String vollständig und gültig ist
+                            if (fullData.startsWith("{") && fullData.endsWith("}")) {
                                 try {
-                                    val funkyInfo = Json.decodeFromString<FunkyInfo>(fullData)
-                                    Log.d("Bluetooth", "Erfolgreich deserialisiert: $funkyInfo")
+                                    // JSON deserialisieren
+                                    val parsedFunkyInfo = Json.decodeFromString<FunkyInfo>(fullData)
+
+                                    // Frequenz auf genau 4 Nachkommastellen formatieren
+                                    val formattedFrequency = String.format(Locale.US, "%.4f", parsedFunkyInfo.frequency).toFloat()
+
+                                    // Daten sofort in FunkyRepository speichern
+                                    MainActivity.FunkyRepository.funkyInfo = parsedFunkyInfo.copy(frequency = formattedFrequency)
+
+                                    Log.d("Bluetooth", "Erfolgreich gespeichert: ${MainActivity.FunkyRepository.funkyInfo}")
+
+                                    // UI-Update auf dem Main-Thread
+                                    withContext(Dispatchers.Main) {
+                                        receivedData.value = fullData
+                                    }
+
+                                    // Nach erfolgreicher Verarbeitung den String zurücksetzen
+                                    fullData = ""
                                 } catch (e: Exception) {
                                     Log.e("Bluetooth", "Fehler beim Deserialisieren: ${e.message}")
                                 }
-
-                                fullData =
-                                    "" // Leere den String nach der erfolgreichen Verarbeitung
                             }
                         }
                     }
@@ -420,7 +423,7 @@ class MainActivity : ComponentActivity() {
                     BluetoothApp(receivedData, scannedDevices)
                 }
                 composable("dataScreen") {
-                    DataScreen(navController, receivedData.value) // Übergeben der Daten
+                    DataScreen(navController) // Übergeben der Daten
                 }
             }
 
@@ -436,9 +439,8 @@ class MainActivity : ComponentActivity() {
         receivedData: MutableState<String>,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.Bottom // Hält alles am unteren Ende der Box
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Bottom
         ) {
             Box(
                 modifier = Modifier
@@ -447,9 +449,8 @@ class MainActivity : ComponentActivity() {
                     .height(60.dp)
                     .clip(RoundedCornerShape(40.dp))
                     .background(Color(0xAFFFFFFF))
+                    .clickable(enabled = true, onClick = {}) // Verhindert Durchklicken
             ) {
-
-                // Deine Inhalte wie Buttons
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -458,127 +459,135 @@ class MainActivity : ComponentActivity() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     //------------------------------------------Verbinden-----------------------------------------
-                    when(ObserveCurrentScreen(navController)){
-                        //Cennecten----------------------------------------
-                        "bluetoothScreen"->{
-                            IconButton(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .padding(4.dp),
-                                onClick = {
-                                    selectedDevice?.let {
-                                        connectToDevice(it, navController)
-                                        startListeningForData(receivedData)
-                                        sendFunkyInfo(false)
-                                    } ?: Toast.makeText(
-                                        applicationContext,
-                                        "Kein Gerät ausgewählt",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
+                    when (ObserveCurrentScreen(navController)) {
+                        // Verbinden-Button (Bluetooth Screen)
+                        "bluetoothScreen" -> {
+                            Box(
+                                modifier = Modifier.size(80.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = "Verbinden",
-                                    modifier = Modifier.size(35.dp),
-                                    tint = Color.Blue
-                                )
-                            }
-                        }
-                        //Disconnecten----------------------------------------
-                        "dataScreen"->{
-                            IconButton(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .padding(4.dp),
-                                onClick = {
-                                    selectedDevice?.let {
-                                        disconnectFromDevice(bluetoothSocket, navController)
-                                    } ?: Toast.makeText(
-                                        applicationContext,
-                                        "Kein Gerät ausgewählt",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                IconButton(
+                                    modifier = Modifier.size(64.dp),
+                                    onClick = {
+                                        selectedDevice?.let {
+                                            connectToDevice(it, navController)
+                                            startListeningForData(receivedData)
+                                            sendFunkyInfo(false)
+                                        } ?: Toast.makeText(
+                                            applicationContext,
+                                            "Kein Gerät ausgewählt",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = "Verbinden",
+                                        modifier = Modifier.size(35.dp),
+                                        tint = Color.Blue
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Verbinden",
-                                    modifier = Modifier.size(35.dp),
-                                    tint = Color.Blue
-                                )
                             }
                         }
 
+                        // Disconnect-Button (Data Screen)
+                        "dataScreen" -> {
+                            Box(
+                                modifier = Modifier.size(80.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                IconButton(
+                                    modifier = Modifier.size(64.dp),
+                                    onClick = {
+                                        selectedDevice?.let {
+                                            disconnectFromDevice(bluetoothSocket, navController)
+                                        } ?: Toast.makeText(
+                                            applicationContext,
+                                            "Kein Gerät ausgewählt",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = "Trennen",
+                                        modifier = Modifier.size(35.dp),
+                                        tint = Color.Blue
+                                    )
+                                }
+                            }
+                        }
                     }
-
 
                     //----------------------------------------------------Scannen--------------------------------------------------
                     when (ObserveCurrentScreen(navController)) {
-                        //scannen----------------------------------------
+                        // Scannen-Button (Bluetooth Screen)
                         "bluetoothScreen" -> {
-                            IconButton(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .padding(4.dp),
-                                onClick = { startScanningDevices(scannedDevices) }) {
-                                if (isScanning) {
+                            Box(
+                                modifier = Modifier.size(80.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                IconButton(
+                                    modifier = Modifier.size(64.dp),
+                                    onClick = { startScanningDevices(scannedDevices) }
+                                ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Search,
                                         contentDescription = "Scannen",
                                         modifier = Modifier.size(35.dp),
-                                        tint = Color.Red
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Search,
-                                        contentDescription = "Scannen",
-                                        modifier = Modifier.size(35.dp),
-                                        tint = Color(0xFF199A40)
+                                        tint = if (isScanning) Color.Red else Color(0xFF199A40)
                                     )
                                 }
                             }
                         }
 
-                        //refresh----------------------------------------
+                        // Refresh-Button (Data Screen)
                         "dataScreen" -> {
-                            IconButton(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .padding(4.dp),
-                                onClick = {
-                                    sendFunkyInfo(false)
-                                }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Refresh,
-                                    contentDescription = "Refresh",
-                                    modifier = Modifier.size(35.dp),
-                                    tint = Color.Blue
-                                )
-
+                            Box(
+                                modifier = Modifier.size(80.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                IconButton(
+                                    modifier = Modifier.size(64.dp),
+                                    onClick = {
+                                        sendFunkyInfo(false)
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Refresh,
+                                        contentDescription = "Refresh",
+                                        modifier = Modifier.size(35.dp),
+                                        tint = Color.Blue
+                                    )
+                                }
                             }
                         }
                     }
 
                     //------------------------------------------------------------Senden-----------------------------------------------------
-                    IconButton(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .padding(4.dp),
-                        onClick = {
-                            sendFunkyInfo(true)
-                        }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Send,
-                            contentDescription = "Senden",
-                            modifier = Modifier.size(35.dp),
-                            tint = Color.Blue
-                        )
+                    Box(
+                        modifier = Modifier.size(80.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(
+                            modifier = Modifier.size(64.dp),
+                            onClick = {
+                                sendFunkyInfo(true)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Send,
+                                contentDescription = "Senden",
+                                modifier = Modifier.size(35.dp),
+                                tint = Color.Blue
+                            )
+                        }
                     }
                 }
             }
         }
     }
+
 
     @Composable
     fun BluetoothApp(
@@ -770,92 +779,6 @@ class MainActivity : ComponentActivity() {
 
                 }
             }
-
-
-            /*
-            // Hotbar bleibt unabhängig und unten sichtbar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-                    .height(60.dp)
-                    .align(Alignment.BottomCenter)
-                    .clip(RoundedCornerShape(40.dp))
-                    .background(Color(0xAFFFFFFF))
-                    .zIndex(1f) // Hotbar bleibt über den anderen Elementen
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    //------------------------------------------Verbinden-----------------------------------------
-                    IconButton(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .padding(4.dp),
-                        onClick = {
-                            selectedDevice?.let {
-                                connectToDevice(it, navController)
-                                startListeningForData(receivedData)
-                            } ?: Toast.makeText(
-                                applicationContext,
-                                "Kein Gerät ausgewählt",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = "Verbinden",
-                            modifier = Modifier.size(35.dp),
-                            tint = Color.Blue
-                        )
-                    }
-                    //----------------------------------------------------Scannen--------------------------------------------------
-                    IconButton(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .padding(4.dp),
-                        onClick = { startScanningDevices(scannedDevices) }) {
-                        if (isScanning) {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = "Scannen",
-                                modifier = Modifier.size(35.dp),
-                                tint = Color.Red
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = "Scannen",
-                                modifier = Modifier.size(35.dp),
-                                tint = Color(0xFF199A40)
-                            )
-                        }
-
-                    }
-                    //------------------------------------------------------------Senden-----------------------------------------------------
-                    IconButton(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .padding(4.dp),
-                        onClick = { sendFunkyInfo() }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Send,
-                            contentDescription = "Senden",
-                            modifier = Modifier.size(35.dp),
-                            tint = Color.Blue
-                        )
-                    }
-                }
-            }
-
-             */
-
-
         }
     }
 }

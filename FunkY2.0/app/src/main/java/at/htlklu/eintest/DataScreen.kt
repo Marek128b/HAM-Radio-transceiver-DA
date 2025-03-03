@@ -27,32 +27,13 @@ import java.util.Locale
 import kotlinx.serialization.json.Json
 
 @Composable
-fun DataScreen(navController: NavController, receivedData: String) {
+fun DataScreen(navController: NavController) {
 
     val gradientBrush = Brush.linearGradient(
         colors = listOf(Color(0xFF11144F), Color(0xFF1F4596)),
         start = androidx.compose.ui.geometry.Offset(0f, 0f),
         end = androidx.compose.ui.geometry.Offset(1500f, 1500f)
     )
-
-
-    if (receivedData.isNotEmpty()) {
-        try {
-            // JSON-Daten in FunkyInfo umwandeln
-            val parsedFunkyInfo = Json.decodeFromString<FunkyInfo>(receivedData)
-
-            // Neuen FunkyInfo-Wert mit der formatierten Frequenz speichern
-            MainActivity.FunkyRepository.funkyInfo = parsedFunkyInfo
-
-            Log.d(
-                "DataScreen",
-                "Erfolgreich deserialisiert: ${MainActivity.FunkyRepository.funkyInfo}"
-            )
-        } catch (e: Exception) {
-            Log.e("DataScreen", "Fehler bei der Deserialisierung der Daten: ${e.message}")
-        }
-    }
-
 
     Box(
         modifier = Modifier
@@ -67,6 +48,7 @@ fun DataScreen(navController: NavController, receivedData: String) {
         ) {
             val spacing = 16.dp
             val squareSize = (maxWidth - spacing) / 2
+            val tempBoxSize = (maxHeight - (squareSize * 2) - 65.dp - spacing * 3)
 
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -95,7 +77,21 @@ fun DataScreen(navController: NavController, receivedData: String) {
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
+                                    text = "Name: ",
+                                    color = Color.White,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
                                     text = MainActivity.FunkyRepository.funkyInfo.name,
+                                    color = Color.White,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = "Call",
                                     color = Color.White,
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.Bold,
@@ -166,7 +162,7 @@ fun DataScreen(navController: NavController, receivedData: String) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(squareSize)
+                        .height(tempBoxSize)
                         .clip(RoundedCornerShape(25.dp))
                         .background(Color(0x11FFFFFF))
                         .padding(5.dp)
@@ -194,63 +190,42 @@ fun DataScreen(navController: NavController, receivedData: String) {
     }
 }
 
-
 @Composable
 fun FrequencyLock(
     modifier: Modifier = Modifier
 ) {
-    var currentFrequency by remember { mutableStateOf(MainActivity.FunkyRepository.funkyInfo.frequency) }
+    BoxWithConstraints(modifier = modifier) {
+        val digitWidth = maxWidth / 11  // Dynamische Breite für die einzelnen Digits
 
-    Log.d("DEBUG", "$currentFrequency")
+        // `currentFrequency` direkt mit FunkyRepository synchronisieren
+        val currentFrequency by rememberUpdatedState(MainActivity.FunkyRepository.funkyInfo.frequency)
 
-    val formattedFrequency = String.format(Locale.US, "%.4f", currentFrequency) // Immer 4 Nachkommastellen
-    val parts = formattedFrequency.split(".") // Trennen in Vorkomma- und Nachkommazahlen
+        val formattedFrequency = String.format(Locale.US, "%.4f", currentFrequency) // Immer 4 Nachkommastellen
+        val parts = formattedFrequency.split(".")
 
-// Stelle sicher, dass die Nachkommastellen genau 4 Zeichen lang sind
-    val decimalPart = parts.getOrNull(1)?.padEnd(4, '0') ?: "0000" // Falls kürzer, mit Nullen auffüllen
+        // Stelle sicher, dass die Nachkommastellen genau 4 Zeichen lang sind
+        val decimalPart = parts.getOrNull(1)?.padEnd(4, '0') ?: "0000"
 
-    val integerPart = parts[0].map { it.toString().toInt() }
-    var decimalDigits by remember { mutableStateOf(decimalPart.map { it.toString().toInt() }) }
+        val integerPart = parts[0].map { it.toString().toInt() }
+        var decimalDigits by remember { mutableStateOf(decimalPart.map { it.toString().toInt() }) }
 
-    Log.d("DEBUG", "Formatted Frequency: $formattedFrequency")
-    Log.d("DEBUG", "Decimal Part: $decimalPart")
-
-
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        integerPart.forEach { digit ->
-            Box(
-                modifier = Modifier.width(40.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = digit.toString(),
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    textAlign = TextAlign.Center
-                )
-            }
+        LaunchedEffect(currentFrequency) {
+            // Aktualisiere decimalDigits, falls sich FunkyRepository ändert
+            decimalDigits = decimalPart.map { it.toString().toInt() }
         }
 
-        Box(modifier = Modifier.width(20.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = ",",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
-        }
-
-        decimalDigits.forEachIndexed { index, digit ->
-            if (index == 3) {
-                Box(modifier = Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            integerPart.forEach { digit ->
+                Box(
+                    modifier = Modifier.width(digitWidth),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = ".",
+                        text = digit.toString(),
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -259,21 +234,58 @@ fun FrequencyLock(
                 }
             }
 
-            NumberWheel(
-                value = digit,
-                onValueChange = { newDigit ->
-                    val newDigits = decimalDigits.toMutableList().apply { this[index] = newDigit }
-                    decimalDigits = newDigits
+            Box(modifier = Modifier.width(digitWidth / 2), contentAlignment = Alignment.Center) {
+                Text(
+                    text = ",",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+            }
 
-                    val newFrequencyString = "${integerPart.joinToString("")}.${newDigits.joinToString("")}"
-                    val newFrequency = newFrequencyString.toFloat()
+            decimalDigits.forEachIndexed { index, digit ->
+                if (index == 3) {
+                    Box(modifier = Modifier.width(digitWidth / 2), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = ".",
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
 
-                    // **Direkt speichern in FunkyRepository und UI updaten**
-                    MainActivity.FunkyRepository.funkyInfo.frequency = newFrequency
-                    currentFrequency = newFrequency  // **UI-Refresh sicherstellen**
-                },
-                modifier = Modifier.width(40.dp)
-            )
+                NumberWheel(
+                    value = digit,
+                    onValueChange = { newDigit ->
+                        val newDigits = decimalDigits.toMutableList().apply { this[index] = newDigit }
+                        decimalDigits = newDigits
+
+                        val newFrequencyString = "${integerPart.joinToString("")}.${newDigits.joinToString("")}"
+                        val newFrequency = newFrequencyString.toFloat()
+
+                        // **Direkt speichern in FunkyRepository**
+                        MainActivity.FunkyRepository.funkyInfo =
+                            MainActivity.FunkyRepository.funkyInfo.copy(frequency = newFrequency)
+                    },
+                    modifier = Modifier.width(digitWidth) // Dynamische Breite für die Zahlenräder
+                )
+            }
+
+            Box(
+                modifier = Modifier.width(digitWidth*3),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "MHz",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
