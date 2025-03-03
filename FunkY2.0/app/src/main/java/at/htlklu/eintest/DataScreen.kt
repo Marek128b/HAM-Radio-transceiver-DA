@@ -1,23 +1,31 @@
 package at.htlklu.eintest.ui
 
 import android.util.Log
+import android.util.Size
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -75,39 +83,10 @@ fun DataScreen(navController: NavController) {
                                 .background(Color(0x050000000)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "Name: ",
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = MainActivity.FunkyRepository.funkyInfo.name,
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = "Call",
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
-                                    text = MainActivity.FunkyRepository.funkyInfo.call,
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                            NameCallBox(squareSize)
                         }
                     }
-                    // Box für Voltage
+                    // Box für Voltage 10V - 12.6V
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -124,13 +103,8 @@ fun DataScreen(navController: NavController) {
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = MainActivity.FunkyRepository.funkyInfo.voltage.toString(),
-                                    color = Color.White,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
+                                BatteryIndicator(modifier = Modifier.padding(16.dp))
+
                             }
                         }
                     }
@@ -200,7 +174,8 @@ fun FrequencyLock(
         // `currentFrequency` direkt mit FunkyRepository synchronisieren
         val currentFrequency by rememberUpdatedState(MainActivity.FunkyRepository.funkyInfo.frequency)
 
-        val formattedFrequency = String.format(Locale.US, "%.4f", currentFrequency) // Immer 4 Nachkommastellen
+        val formattedFrequency =
+            String.format(Locale.US, "%.4f", currentFrequency) // Immer 4 Nachkommastellen
         val parts = formattedFrequency.split(".")
 
         // Stelle sicher, dass die Nachkommastellen genau 4 Zeichen lang sind
@@ -246,7 +221,10 @@ fun FrequencyLock(
 
             decimalDigits.forEachIndexed { index, digit ->
                 if (index == 3) {
-                    Box(modifier = Modifier.width(digitWidth / 2), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.width(digitWidth / 2),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
                             text = ".",
                             fontSize = 32.sp,
@@ -260,10 +238,12 @@ fun FrequencyLock(
                 NumberWheel(
                     value = digit,
                     onValueChange = { newDigit ->
-                        val newDigits = decimalDigits.toMutableList().apply { this[index] = newDigit }
+                        val newDigits =
+                            decimalDigits.toMutableList().apply { this[index] = newDigit }
                         decimalDigits = newDigits
 
-                        val newFrequencyString = "${integerPart.joinToString("")}.${newDigits.joinToString("")}"
+                        val newFrequencyString =
+                            "${integerPart.joinToString("")}.${newDigits.joinToString("")}"
                         val newFrequency = newFrequencyString.toFloat()
 
                         // **Direkt speichern in FunkyRepository**
@@ -275,7 +255,7 @@ fun FrequencyLock(
             }
 
             Box(
-                modifier = Modifier.width(digitWidth*3),
+                modifier = Modifier.width(digitWidth * 3),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -339,6 +319,166 @@ fun NumberWheel(
     }
 }
 
+@Composable
+fun NameCallBox(squareSize: Dp) {
+    var name by remember { mutableStateOf(MainActivity.FunkyRepository.funkyInfo.name) }
+    var call by remember { mutableStateOf(MainActivity.FunkyRepository.funkyInfo.call) }
+
+    var isEditingName by remember { mutableStateOf(false) }
+    var isEditingCall by remember { mutableStateOf(false) }
+
+    // **Automatische Aktualisierung bei Änderung von FunkyRepository**
+    LaunchedEffect(MainActivity.FunkyRepository.funkyInfo.name) {
+        name = MainActivity.FunkyRepository.funkyInfo.name
+    }
+    LaunchedEffect(MainActivity.FunkyRepository.funkyInfo.call) {
+        call = MainActivity.FunkyRepository.funkyInfo.call
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Name (editierbar)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Transparent)
+                .clickable { isEditingName = true }
+                .padding(5.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isEditingName) {
+                TextField(
+                    value = name,
+                    onValueChange = { newValue ->
+                        name = newValue
+                        MainActivity.FunkyRepository.funkyInfo =
+                            MainActivity.FunkyRepository.funkyInfo.copy(name = newValue) // **Speichern**
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = Color.Black,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(5.dp),
+                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { isEditingName = false })
+                )
+            } else {
+                Text(
+                    text = name,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        // Trennlinie (dünne weiße Box)
+        Box(
+            modifier = Modifier
+                .width(squareSize - 30.dp)
+                .height(5.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color.White)
+                .padding(20.dp)
+        )
+
+        // Call (editierbar, etwas kleiner)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Transparent)
+                .clickable { isEditingCall = true }
+                .padding(5.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isEditingCall) {
+                TextField(
+                    value = call,
+                    onValueChange = { newValue ->
+                        call = newValue
+                        MainActivity.FunkyRepository.funkyInfo =
+                            MainActivity.FunkyRepository.funkyInfo.copy(call = newValue) // **Speichern**
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = Color.Black,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(5.dp),
+                    keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { isEditingCall = false })
+                )
+            } else {
+                Text(
+                    text = call,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun BatteryIndicator(modifier: Modifier = Modifier) {
+    val batteryWidth = 120.dp  // Gesamtbreite der Batterie
+    val batteryHeight = 50.dp  // Höhe der Batterie
+    val batteryCapWidth = 10.dp // Breite der kleinen Box am Rand
+    val batteryPadding = 4.dp   // Innenabstand für das grüne Fülllevel
+
+    var voltage by remember { mutableStateOf(MainActivity.FunkyRepository.funkyInfo.voltage) }
+    var batteryLevel by remember { mutableStateOf((12.6f - voltage) / 2.6f) }
+
+    Box(
+        modifier = modifier
+            .width(batteryWidth + batteryCapWidth) // Gesamte Breite inklusive Batterie-Kopf
+            .height(batteryHeight)
+            .background(Color.Transparent),
+        contentAlignment = Alignment.Center
+    ) {
+        // Äußere Batterie-Box
+        Box(
+            modifier = Modifier
+                .width(batteryWidth+4.dp)
+                .height(batteryHeight+4.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color.White)
+        ) {
+            // Innere grüne Box für den Füllstand
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(batteryPadding) // Abstand zur Außenkante
+                    .width((batteryWidth - batteryPadding * 2) * batteryLevel.coerceIn(0f, 1f)) // Dynamische Breite
+                    .background(Color(0xFF199A40), RoundedCornerShape(4.dp))
+            )
+        }
+
+        // Kleine Box als Batterie-Kopf (rechts)
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .offset(x = batteryWidth / 2) // Rechts neben die Batterie verschieben
+                .width(batteryCapWidth)
+                .height(batteryHeight / 3)
+                .background(Color.White, RoundedCornerShape(2.dp))
+        )
+    }
+}
 
 
 //14,000 000 MHz - 14,350 000 MHz in 100 Hz schritten
