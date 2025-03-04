@@ -1,7 +1,10 @@
 package at.htlklu.eintest.ui
 
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.util.Log
 import android.util.Size
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,8 +22,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusModifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -102,14 +108,13 @@ fun DataScreen(navController: NavController) {
                                 .background(Color(0x050000000)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 BatteryIndicator(modifier = Modifier.padding(16.dp))
 
-                            }
                         }
                     }
                 }
 
+                //Frequenz
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -131,7 +136,6 @@ fun DataScreen(navController: NavController) {
                     }
                 }
 
-
                 // Box für Temperatur
                 Box(
                     modifier = Modifier
@@ -145,17 +149,12 @@ fun DataScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0x050000000)),
+                            .background(Color(0x050000000))
+                            .padding(40.dp, 40.dp, 60.dp, 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = MainActivity.FunkyRepository.funkyInfo.temperature.toString(),
-                                color = Color.White,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
+                            TemperatureTracker(Modifier)
                         }
                     }
                 }
@@ -383,8 +382,8 @@ fun NameCallBox(squareSize: Dp) {
         // Trennlinie (dünne weiße Box)
         Box(
             modifier = Modifier
-                .width(squareSize - 30.dp)
-                .height(5.dp)
+                .width(squareSize - 40.dp)
+                .height(4.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(Color.White)
                 .padding(20.dp)
@@ -435,13 +434,58 @@ fun NameCallBox(squareSize: Dp) {
 
 @Composable
 fun BatteryIndicator(modifier: Modifier = Modifier) {
-    val batteryWidth = 120.dp  // Gesamtbreite der Batterie
-    val batteryHeight = 50.dp  // Höhe der Batterie
-    val batteryCapWidth = 10.dp // Breite der kleinen Box am Rand
-    val batteryPadding = 4.dp   // Innenabstand für das grüne Fülllevel
+    Column(modifier = modifier.padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
 
-    var voltage by remember { mutableStateOf(MainActivity.FunkyRepository.funkyInfo.voltage) }
-    var batteryLevel by remember { mutableStateOf((12.6f - voltage) / 2.6f) }
+        // Verwende rememberUpdatedState, um sicherzustellen, dass wir immer den neuesten Wert von voltage verwenden
+        val voltage by rememberUpdatedState(MainActivity.FunkyRepository.funkyInfo.voltage)
+
+        // Berechne den batteryLevel, der sich immer dynamisch aktualisiert
+        var batteryLevel by remember { mutableStateOf((voltage - 10f) / 2.6f) }
+
+        // LaunchedEffect, um den Wert bei Änderungen von FunkyRepository zu aktualisieren
+        LaunchedEffect(voltage) {
+            batteryLevel =
+                (voltage - 10f) / 2.6f // Dies ist eine einfache Berechnung, die sich je nach Bedarf ändern kann
+        }
+
+        val roundedBatteryLevel = ((batteryLevel.coerceIn(0f, 1f).toDouble())*100).let{
+            kotlin.math.ceil(it).toInt() // Rundet auf die nächste ganze Zahl auf
+        }
+
+        val batteryLevelString = roundedBatteryLevel.toString() // Umwandeln in String
+
+
+        BatteryVisual(Modifier,batteryLevel)
+        Text(
+            text = batteryLevelString + "%",
+            color = Color.White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = MainActivity.FunkyRepository.funkyInfo.voltage.toString() +"V",
+            color = Color.White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+    }
+
+}
+
+@Composable
+fun BatteryVisual(modifier: Modifier = Modifier, batteryLevel: Float) {
+
+    val batteryWidth = 100.dp  // Gesamtbreite der Batterie
+    val batteryHeight = 50.dp  // Höhe der Batterie
+    val batteryCapWidth = 20.dp // Breite der kleinen Box am Rand
+    val batteryPadding = 4.dp   // Innenabstand für das grüne Fülllevel
+    val batteryRounded = 10.dp
+
+
 
     Box(
         modifier = modifier
@@ -450,35 +494,177 @@ fun BatteryIndicator(modifier: Modifier = Modifier) {
             .background(Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
-        // Äußere Batterie-Box
-        Box(
-            modifier = Modifier
-                .width(batteryWidth+4.dp)
-                .height(batteryHeight+4.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color.White)
-        ) {
-            // Innere grüne Box für den Füllstand
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(batteryPadding) // Abstand zur Außenkante
-                    .width((batteryWidth - batteryPadding * 2) * batteryLevel.coerceIn(0f, 1f)) // Dynamische Breite
-                    .background(Color(0xFF199A40), RoundedCornerShape(4.dp))
-            )
-        }
-
         // Kleine Box als Batterie-Kopf (rechts)
         Box(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
                 .offset(x = batteryWidth / 2) // Rechts neben die Batterie verschieben
                 .width(batteryCapWidth)
-                .height(batteryHeight / 3)
-                .background(Color.White, RoundedCornerShape(2.dp))
+                .height(batteryHeight / 2)
+                .background(Color.White, RoundedCornerShape(batteryRounded / 2))
         )
+
+        // Äußere Batterie-Box
+        Box(
+            modifier = Modifier
+                .width(batteryWidth + 4.dp)
+                .height(batteryHeight + 4.dp)
+                .clip(RoundedCornerShape(batteryRounded))
+                .background(Color.White)
+        ) {
+            // Innere graue Box für den Füllstand
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(batteryPadding) // Abstand zur Außenkante
+                    .clip(RoundedCornerShape(batteryRounded - batteryPadding))
+                    .background(Color.Gray)
+            ) {
+                // Grüne Box für den aktuellen Füllstand
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(
+                            (batteryWidth - batteryPadding * 2) * batteryLevel.coerceIn(0f, 1f)
+                        ) // Dynamische Breite des grünen Bereichs basierend auf batteryLevel
+                        .background(
+                            Color(0xFF199A40),
+                            RoundedCornerShape(batteryRounded - batteryPadding)
+                        )
+                )
+            }
+        }
     }
 }
+
+@Composable
+fun TemperatureTracker(modifier: Modifier) {
+    // Liste, um die letzten 10 Temperaturwerte zu speichern
+    val temperatureHistory = remember { mutableStateOf(MutableList(10) { 0f }) }
+
+    // Neuen Temperaturwert hinzufügen und die Liste aktualisieren
+    LaunchedEffect(MainActivity.FunkyRepository.funkyInfo.temperature) {
+        val newTemperature = MainActivity.FunkyRepository.funkyInfo.temperature
+
+        // Füge den neuen Wert hinzu, entferne den ältesten
+        val updatedHistory = temperatureHistory.value.toMutableList()
+        updatedHistory.removeAt(0)
+        updatedHistory.add(newTemperature)
+
+        // Aktualisiere die Liste
+        temperatureHistory.value = updatedHistory
+    }
+
+    // Holen der letzten 10 Temperaturwerte
+    val temperatures = temperatureHistory.value
+
+    // Zeige das Diagramm mit den letzten 10 Temperaturwerten
+    Box(
+        modifier = modifier.fillMaxSize().background(Color.Transparent)
+    ) {
+        LineChartWithAxes(temperatures)
+    }
+}
+
+@Composable
+fun LineChartWithAxes(data: List<Float>) {
+    // X-Achse: Indizes von 0 bis 9 (letzte 10 Werte)
+    val xValues = data.indices.toList()
+
+    // Y-Achse: Temperaturwerte
+    val yValues = data
+
+    Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        // Abstand der X-Achse
+        val xStep = canvasWidth / (xValues.size - 1)
+
+        // Zeichne die Linien
+        for (i in 1 until xValues.size) {
+            val startX = xStep * (i - 1)
+            val startY = canvasHeight * (1 - yValues[i - 1] / 100) // Max Temp = 100
+            val endX = xStep * i
+            val endY = canvasHeight * (1 - yValues[i] / 100)
+
+            drawLine(
+                start = Offset(startX, startY),
+                end = Offset(endX, endY),
+                color = Color.Green,
+                strokeWidth = 4f
+            )
+        }
+
+        // Zeichne X-Achse (Markierungen)
+        for (i in xValues.indices) {
+            val x = xStep * i
+            drawLine(
+                start = Offset(x, canvasHeight),
+                end = Offset(x, canvasHeight + 10.dp.toPx()),
+                color = Color.White,
+                strokeWidth = 2f
+            )
+
+            drawContext.canvas.nativeCanvas.apply {
+                drawText(
+                    "$i", // X-Wert
+                    x - 10.dp.toPx(), // Kleine Korrektur für die Positionierung
+                    canvasHeight + 25.dp.toPx(),
+                    Paint().apply {
+                        color = android.graphics.Color.WHITE
+                        textSize = 20f
+                    }
+                )
+            }
+        }
+
+        // Zeichne Y-Achse (Markierungen)
+        // Zeichne Y-Achse (Markierungen)
+        val yStep = canvasHeight / 5 // 5 Y-Achsenmarkierungen
+        for (i in 0..5) {
+            val y = canvasHeight - (yStep * i) // Invertiere den y-Wert
+            drawLine(
+                start = Offset(0f, y),
+                end = Offset(-10.dp.toPx(), y),
+                color = Color.White,
+                strokeWidth = 2f
+            )
+
+
+
+        drawContext.canvas.nativeCanvas.apply {
+                drawText(
+                    "${(100f / 5 * i).toInt()}", // Y-Wert (z.B. 0, 20, 40, 60, 80, 100)
+                    -30.dp.toPx(), // Korrektur für die Y-Achsenwerte
+                    y + 10.dp.toPx(),
+                    Paint().apply {
+                        color = android.graphics.Color.WHITE
+                        textSize = 20f
+                    }
+                )
+            }
+        }
+
+        // Aktuellen Temperaturwert anzeigen
+        val currentTemperature = yValues.last()
+        val lastX = xStep * (xValues.size - 1)
+        val lastY = canvasHeight * (1 - currentTemperature / 100)
+
+        drawContext.canvas.nativeCanvas.apply {
+            drawText(
+                "${currentTemperature.toInt()}°C", // Temperaturtext
+                lastX + 10.dp.toPx(),
+                lastY - 10.dp.toPx(),
+                Paint().apply {
+                    color = android.graphics.Color.WHITE
+                    textSize = 40f
+                    typeface = Typeface.DEFAULT_BOLD
+                }
+            )
+        }
+    }
+}
+
 
 
 //14,000 000 MHz - 14,350 000 MHz in 100 Hz schritten
