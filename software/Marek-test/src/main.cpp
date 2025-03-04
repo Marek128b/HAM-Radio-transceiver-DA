@@ -16,12 +16,16 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.7
+// FIRMWARE VERSION v0.0.8
 // #########################################
 
-String FW_version = "v0.0.7";
+String FW_version = "v0.0.8";
 
-TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
+TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
+TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
+TFT_eSprite spriteStep = TFT_eSprite(&tft);    // Create Sprite object "spriteStep" with pointer to "tft" object
+TFT_eSprite spriteFO = TFT_eSprite(&tft);     // Create Sprite object "spriteFO" with pointer to "tft" object
+
 const int backlight_led = 46; // backlight of LCD
 /*
 TFT_MISO = 18
@@ -115,6 +119,15 @@ void setup()
   tft.setRotation(3);
   tft.fillScreen(TFT_BLACK); // sets Background color in RGB565 format
 
+  spriteAmpTEMP.setColorDepth(8);      // Create an 8-bit sprite
+  spriteAmpTEMP.createSprite(480, 35); // creating a sprite with dimensions 480x35 pixels.
+
+  spriteStep.setColorDepth(8);      // Create an 8-bit sprite
+  spriteStep.createSprite(480, 45); // creating a sprite with dimensions 480x45 pixels.
+
+  spriteFO.setColorDepth(8);      // Create an 8-bit sprite
+  spriteFO.createSprite(480, 90); // creating a sprite with dimensions 480x90 pixels.
+
   // error correction = frequency error / wanted frequency
   if (!si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, 0))
   {
@@ -155,7 +168,7 @@ void setup()
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
-  char strBuffer[32];
+  char strBuffer[16];
   snprintf(strBuffer, sizeof(strBuffer), "FunkY %s", FW_version); // prints the heading with the current firmware version
   tft.drawString(strBuffer, 0, 0);                                // prints the millis to position 0,0 and with the font #7 which looks good for text
   printRxTxState();
@@ -294,8 +307,8 @@ void printVoltage()
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "%.1fV", voltage); // prints the Battery Voltage
-  tft.drawString(strBuffer, 290, 0);                        // prints the millis to position 29,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "%.1fV  ", voltage); // prints the Battery Voltage
+  tft.drawString(strBuffer, 290, 0);                          // prints the millis to position 29,0 and with the font #7 which looks good for text
 }
 
 void printFreq(unsigned long frequency)
@@ -313,19 +326,21 @@ void printFreq(unsigned long frequency)
 void printStep(unsigned int freqInc)
 {
   Serial.println("Step size = " + freqInc);
-  tft.setTextColor(tft.color565(0, 255, 50), TFT_BLACK); // by setting the text background color you can update the text without flickering
-  tft.setFreeFont(FF8);
-  tft.setTextSize(1);
-  char strBuffer[32];
+  spriteStep.setTextColor(tft.color565(0, 255, 50), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteStep.setFreeFont(FF8);
+  spriteStep.setTextSize(1);
+  char strBuffer[16];
   snprintf(strBuffer, sizeof(strBuffer), "Step: %dHz  ", freqInc);
-  tft.drawString(strBuffer, 0, 170); // prints the millis to position 0,99 74+24*2*2
+  spriteStep.drawString(strBuffer, 0, 0);
+
+  spriteStep.pushSprite(0, 160);
 }
 
 void printVFO_BFO(unsigned long frequency)
 {
-  tft.setTextColor(tft.color565(255, 255, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
-  tft.setFreeFont(FF8);
-  tft.setTextSize(1);
+  spriteFO.setTextColor(tft.color565(255, 255, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteFO.setFreeFont(FF8);
+  spriteFO.setTextSize(1);
 
   float vfo_freq = ((float)(frequency * 100) + (float)(IF_Freq * 100)) / (float)100000000;
 
@@ -333,15 +348,17 @@ void printVFO_BFO(unsigned long frequency)
   snprintf(strBuffer, sizeof(strBuffer), "VFO: %.5fMHz  ", vfo_freq);
   Serial.print("SI5351_CLK0 (VFO) = ");
   Serial.println(strBuffer);
-  tft.drawString(strBuffer, 0, 218); // prints the millis to position 0,99 170+2*24
+  spriteFO.drawString(strBuffer, 0, 0); // prints the millis to position 0,99 170+2*24
 
   float bfo_freq = ((float)IF_Freq + (float)2700) / (float)1000000;
 
-  tft.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteFO.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
   snprintf(strBuffer, sizeof(strBuffer), "BFO: %.4fMHz  ", bfo_freq);
   Serial.print("SI5351_CLK2 (BFO) = ");
   Serial.println(strBuffer);
-  tft.drawString(strBuffer, 0, 266); // prints the millis to position 0,99 218+24*2
+  spriteFO.drawString(strBuffer, 0, 50); // prints the millis to position 0,99 218+24*2
+
+  spriteFO.pushSprite(0, 218);
 }
 
 static IRAM_ATTR void enc_cb(void *arg)
@@ -404,11 +421,13 @@ void updateFrequencies(unsigned long frequency)
 
 void updateNTCTemperature()
 {
-  tft.setTextColor(tft.color565(255, 144, 18),TFT_BLACK); // by setting the text background color you can update the text without flickering
-  tft.setFreeFont(FF7);
-  tft.setTextSize(1);
+  spriteAmpTEMP.setTextColor(tft.color565(255, 144, 18), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteAmpTEMP.setFreeFont(FF7);
+  spriteAmpTEMP.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "Amplifier Temp: %.1f°C", NTC_ADC2Temperature(analogRead(NTC_in_pin))); // prints the RX and TX status
-  tft.drawString(strBuffer, 0, 40);                                                            // prints the millis to position 430,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "Amplifier Temp: %.1f°C  ", NTC_ADC2Temperature(analogRead(NTC_in_pin))); // prints the RX and TX status
+  spriteAmpTEMP.drawString(strBuffer, 0, 0);                                                                       // prints the millis to position 430,0 and with the font #7 which looks good for text
+
+  spriteAmpTEMP.pushSprite(0, 35);
 }
