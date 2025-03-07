@@ -16,15 +16,15 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.8
+// FIRMWARE VERSION v0.0.9
 // #########################################
 
-String FW_version = "v0.0.8";
+String FW_version = "v0.0.9";
 
 TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
 TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
 TFT_eSprite spriteStep = TFT_eSprite(&tft);    // Create Sprite object "spriteStep" with pointer to "tft" object
-TFT_eSprite spriteFO = TFT_eSprite(&tft);     // Create Sprite object "spriteFO" with pointer to "tft" object
+TFT_eSprite spriteFO = TFT_eSprite(&tft);      // Create Sprite object "spriteFO" with pointer to "tft" object
 
 const int backlight_led = 46; // backlight of LCD
 /*
@@ -46,6 +46,15 @@ unsigned long frequency = 14000000; // in Hz
 unsigned int freqInc = 1000;
 #define IF_Freq 15995200
 Si5351 si5351;
+si5351_drive si5351Level = SI5351_DRIVE_2MA;
+/*
+| Setting | Scope Vpp |  dBm  |
+|---------|-----------|-------|
+|  2 mA   |    0.77   |  +7   |
+|  4 mA   |    1.35   | +12   |
+|  6 mA   |    1.83   | +14   |
+|  8 mA   |    2.09   | +15.5 |
+*/
 int32_t freq_correction = 155989; // Replace with your calculated ppm error
 /*
 9 - SCL
@@ -106,6 +115,9 @@ float NTC_ADC2Temperature(unsigned int adc_value)
 void setup()
 {
   Serial.begin(115200);
+  Serial.print("Firmware Version: ");
+  Serial.println(FW_version);
+
   pinMode(backlight_led, OUTPUT);
   analogWrite(backlight_led, 255);
   oneWireDisplay.begin();
@@ -139,9 +151,9 @@ void setup()
   {
     Serial.println("Found Si5351 on I2C bus"); // if the si5351 ic is found set the drive strength for both CLK0 and CLK2
     si5351.set_correction(freq_correction, SI5351_PLL_INPUT_XO);
-    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);        // sets the pll A
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); // VFO
-    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_6MA); // BFO
+    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);   // sets the pll A
+    si5351.drive_strength(SI5351_CLK0, si5351Level); // VFO
+    si5351.drive_strength(SI5351_CLK2, si5351Level); // BFO
     indicator.setPixelColor(0, indicator.Color(0, 0, 10));
     indicator.show();
   }
