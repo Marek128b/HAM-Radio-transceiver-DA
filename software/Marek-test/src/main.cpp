@@ -9,17 +9,17 @@
 #include <SD_MMC.h>
 #include "soc/soc.h"
 #include "soc/sdmmc_reg.h"
-#include <ESP32Encoder.h>
+#include <Encoder.h>
 #include <addressable7segment.h>
 #include <Adafruit_NeoPixel.h>
 #include <si5351.h>
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.9
+// FIRMWARE VERSION v0.1.0
 // #########################################
 
-String FW_version = "v0.0.9";
+String FW_version = "v0.1.0";
 
 TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
 TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
@@ -69,13 +69,11 @@ addressableSegment oneWireDisplay(48, 7); // on pin 48, 7 Segments
 #define SegmentBrightness 255
 
 // init  Encoder object and pins
-static IRAM_ATTR void enc_cb(void *arg);
-ESP32Encoder encoder(true, enc_cb);
 long lastEncoderVal = 0;
-#define encPinA 40
-#define encPinB 41
+#define encPinA 41
+#define encPinB 40
 #define encSW 39
-bool interrupt_encoder_executed = false;
+Encoder encoder(encPinA, encPinB);
 bool interrupt_encoder_switch_executed = false;
 
 #define Ptt_btn 4
@@ -158,10 +156,6 @@ void setup()
     indicator.show();
   }
 
-  ESP32Encoder::useInternalWeakPullResistors = puType::up;
-  // use pin encPinA and encPinB for the first encoder
-  encoder.attachHalfQuad(encPinA, encPinB);
-
   attachInterrupt(encSW, encSW_ISR, FALLING);
 
   // NTC input
@@ -243,12 +237,11 @@ void loop()
     interrupt_encoder_switch_executed = false;
   }
 
-  if (interrupt_encoder_executed)
+  if (lastEncoderVal != encoder.read())
   {
-    Serial.println("Encoder count = " + String((int32_t)encoder.getCount() / 2));
+    Serial.println("Encoder count = " + encoder.read());
 
-    int enc_diff = ((int32_t)encoder.getCount() / 2) - lastEncoderVal;
-    lastEncoderVal = ((int32_t)encoder.getCount() / 2);
+    int enc_diff = lastEncoderVal - encoder.read();
 
     if (enc_diff > 0)
     {
@@ -271,9 +264,8 @@ void loop()
     printFreq(frequency);
     printVFO_BFO(frequency);
     updateFrequencies(frequency);
-    printRxTxState();
 
-    interrupt_encoder_executed = false;
+    lastEncoderVal = encoder.read();
   }
 
   if (digitalRead(Ptt_btn) != last_rxtx_status)
@@ -371,11 +363,6 @@ void printVFO_BFO(unsigned long frequency)
   spriteFO.drawString(strBuffer, 0, 50); // prints the millis to position 0,99 218+24*2
 
   spriteFO.pushSprite(0, 218);
-}
-
-static IRAM_ATTR void enc_cb(void *arg)
-{
-  interrupt_encoder_executed = true;
 }
 
 // variables to keep track of the timing of recent interrupts
