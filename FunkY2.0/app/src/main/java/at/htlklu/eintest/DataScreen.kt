@@ -108,7 +108,7 @@ fun DataScreen(navController: NavController) {
                                 .background(Color(0x050000000)),
                             contentAlignment = Alignment.Center
                         ) {
-                                BatteryIndicator(modifier = Modifier.padding(16.dp))
+                            BatteryIndicator(modifier = Modifier.padding(16.dp))
 
                         }
                     }
@@ -150,7 +150,7 @@ fun DataScreen(navController: NavController) {
                             .fillMaxSize()
                             .clip(RoundedCornerShape(20.dp))
                             .background(Color(0x050000000))
-                            .padding(40.dp, 40.dp, 60.dp, 40.dp),
+                            .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -164,11 +164,28 @@ fun DataScreen(navController: NavController) {
 }
 
 @Composable
+fun FrequencyCheck() {
+    // Verwende rememberUpdatedState, um den aktuellen Wert von funkyInfo zu überwachen
+    val frequency = rememberUpdatedState(MainActivity.FunkyRepository.funkyInfo.frequency)
+
+    LaunchedEffect(frequency.value) {
+        // Überprüfe und passe die Frequenz an, falls sie außerhalb des Bereichs liegt
+        if (frequency.value > 14.35f) {
+            MainActivity.FunkyRepository.funkyInfo = MainActivity.FunkyRepository.funkyInfo.copy(frequency = 14.35f)
+        } else if (frequency.value < 14.0f) {
+            MainActivity.FunkyRepository.funkyInfo = MainActivity.FunkyRepository.funkyInfo.copy(frequency = 14.0f)
+        }
+    }
+}
+
+@Composable
 fun FrequencyLock(
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier) {
         val digitWidth = maxWidth / 11  // Dynamische Breite für die einzelnen Digits
+
+        FrequencyCheck()
 
         // `currentFrequency` direkt mit FunkyRepository synchronisieren
         val currentFrequency by rememberUpdatedState(MainActivity.FunkyRepository.funkyInfo.frequency)
@@ -181,7 +198,11 @@ fun FrequencyLock(
         val decimalPart = parts.getOrNull(1)?.padEnd(4, '0') ?: "0000"
 
         val integerPart = parts[0].map { it.toString().toInt() }
-        var decimalDigits by remember { mutableStateOf(decimalPart.map { it.toString().toInt() }) }
+        var decimalDigits by remember {
+            mutableStateOf(decimalPart.map {
+                it.toString().toInt()
+            })
+        }
 
         LaunchedEffect(currentFrequency) {
             // Aktualisiere decimalDigits, falls sich FunkyRepository ändert
@@ -208,7 +229,10 @@ fun FrequencyLock(
                 }
             }
 
-            Box(modifier = Modifier.width(digitWidth / 2), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.width(digitWidth / 2),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
                     text = ",",
                     fontSize = 32.sp,
@@ -266,6 +290,7 @@ fun FrequencyLock(
                 )
             }
         }
+
     }
 }
 
@@ -278,7 +303,7 @@ fun NumberWheel(
     var displayedValue by remember { mutableStateOf(value) }
 
     LaunchedEffect(value) {
-        displayedValue = value // **Sorgt dafür, dass NumberWheel immer den aktuellen Wert anzeigt**
+        displayedValue = value
     }
 
     Column(
@@ -289,7 +314,7 @@ fun NumberWheel(
         IconButton(onClick = {
             val newValue = if (displayedValue == 9) 0 else displayedValue + 1
             displayedValue = newValue
-            onValueChange(newValue) // **Sofort speichern**
+            onValueChange(newValue)
         }) {
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowUp,
@@ -307,7 +332,7 @@ fun NumberWheel(
         IconButton(onClick = {
             val newValue = if (displayedValue == 0) 9 else displayedValue - 1
             displayedValue = newValue
-            onValueChange(newValue) // **Sofort speichern**
+            onValueChange(newValue)
         }) {
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowDown,
@@ -434,7 +459,8 @@ fun NameCallBox(squareSize: Dp) {
 
 @Composable
 fun BatteryIndicator(modifier: Modifier = Modifier) {
-    Column(modifier = modifier.padding(10.dp),
+    Column(
+        modifier = modifier.padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -450,14 +476,14 @@ fun BatteryIndicator(modifier: Modifier = Modifier) {
                 (voltage - 10f) / 2.6f // Dies ist eine einfache Berechnung, die sich je nach Bedarf ändern kann
         }
 
-        val roundedBatteryLevel = ((batteryLevel.coerceIn(0f, 1f).toDouble())*100).let{
+        val roundedBatteryLevel = ((batteryLevel.coerceIn(0f, 1f).toDouble()) * 100).let {
             kotlin.math.ceil(it).toInt() // Rundet auf die nächste ganze Zahl auf
         }
 
         val batteryLevelString = roundedBatteryLevel.toString() // Umwandeln in String
 
 
-        BatteryVisual(Modifier,batteryLevel)
+        BatteryVisual(Modifier, batteryLevel)
         Text(
             text = batteryLevelString + "%",
             color = Color.White,
@@ -466,7 +492,7 @@ fun BatteryIndicator(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center
         )
         Text(
-            text = MainActivity.FunkyRepository.funkyInfo.voltage.toString() +"V",
+            text = MainActivity.FunkyRepository.funkyInfo.voltage.toString() + "V",
             color = Color.White,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
@@ -539,42 +565,47 @@ fun BatteryVisual(modifier: Modifier = Modifier, batteryLevel: Float) {
 @Composable
 fun TemperatureTracker(modifier: Modifier) {
     // Liste, um die letzten 10 Temperaturwerte zu speichern
-    val temperatureHistory = remember { mutableStateOf(MutableList(10) { 0f }) }
+    val temperatureHistory = remember { mutableStateOf(MutableList(10) { 0f }) } // Start mit 10 Werten, alle 0
 
     // Neuen Temperaturwert hinzufügen und die Liste aktualisieren
     LaunchedEffect(MainActivity.FunkyRepository.funkyInfo.temperature) {
         val newTemperature = MainActivity.FunkyRepository.funkyInfo.temperature
 
-        // Füge den neuen Wert hinzu, entferne den ältesten
-        val updatedHistory = temperatureHistory.value.toMutableList()
-        updatedHistory.removeAt(0)
-        updatedHistory.add(newTemperature)
-
-        // Aktualisiere die Liste
-        temperatureHistory.value = updatedHistory
+        // Wenn es das erste Mal ist, setzen wir den ersten Wert auf den initialen Wert von funkyRepository
+        if (temperatureHistory.value.all { it == 0f }) { // Überprüfen, ob alle Werte auf 0f gesetzt sind
+            // Setze alle 10 Werte auf den ersten empfangenen Wert
+            temperatureHistory.value = MutableList(10) { newTemperature }
+        } else {
+            // Füge den neuen Wert hinzu und entferne den ältesten
+            val updatedHistory = temperatureHistory.value.toMutableList()
+            updatedHistory.removeAt(0) // Entferne den ältesten Wert
+            updatedHistory.add(newTemperature) // Füge den neuen Wert hinzu
+            temperatureHistory.value = updatedHistory
+        }
     }
 
     // Holen der letzten 10 Temperaturwerte
     val temperatures = temperatureHistory.value
 
     // Zeige das Diagramm mit den letzten 10 Temperaturwerten
-    Box(
-        modifier = modifier.fillMaxSize().background(Color.Transparent)
-    ) {
-        LineChartWithAxes(temperatures)
-    }
+    LineChartWithAxes(modifier, temperatures)
 }
 
 @Composable
-fun LineChartWithAxes(data: List<Float>) {
+fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
     // X-Achse: Indizes von 0 bis 9 (letzte 10 Werte)
     val xValues = data.indices.toList()
 
     // Y-Achse: Temperaturwerte
     val yValues = data
 
-    Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-        val canvasWidth = size.width
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .padding(30.dp)
+    ) {
+        val canvasWidth = size.width.minus(32)
         val canvasHeight = size.height
 
         // Abstand der X-Achse
@@ -583,7 +614,7 @@ fun LineChartWithAxes(data: List<Float>) {
         // Zeichne die Linien
         for (i in 1 until xValues.size) {
             val startX = xStep * (i - 1)
-            val startY = canvasHeight * (1 - yValues[i - 1] / 100) // Max Temp = 100
+            val startY = canvasHeight * (1 - yValues[i - 1] / 100)
             val endX = xStep * i
             val endY = canvasHeight * (1 - yValues[i] / 100)
 
@@ -591,7 +622,7 @@ fun LineChartWithAxes(data: List<Float>) {
                 start = Offset(startX, startY),
                 end = Offset(endX, endY),
                 color = Color.Green,
-                strokeWidth = 4f
+                strokeWidth = 5f
             )
         }
 
@@ -602,44 +633,41 @@ fun LineChartWithAxes(data: List<Float>) {
                 start = Offset(x, canvasHeight),
                 end = Offset(x, canvasHeight + 10.dp.toPx()),
                 color = Color.White,
-                strokeWidth = 2f
+                strokeWidth = 4f
             )
 
             drawContext.canvas.nativeCanvas.apply {
                 drawText(
                     "$i", // X-Wert
-                    x - 10.dp.toPx(), // Kleine Korrektur für die Positionierung
+                    x - 10.dp.toPx(),
                     canvasHeight + 25.dp.toPx(),
                     Paint().apply {
                         color = android.graphics.Color.WHITE
-                        textSize = 20f
+                        textSize = 30f
                     }
                 )
             }
         }
 
         // Zeichne Y-Achse (Markierungen)
-        // Zeichne Y-Achse (Markierungen)
         val yStep = canvasHeight / 5 // 5 Y-Achsenmarkierungen
         for (i in 0..5) {
-            val y = canvasHeight - (yStep * i) // Invertiere den y-Wert
+            val y = canvasHeight - (yStep * i)
             drawLine(
                 start = Offset(0f, y),
                 end = Offset(-10.dp.toPx(), y),
                 color = Color.White,
-                strokeWidth = 2f
+                strokeWidth = 4f
             )
 
-
-
-        drawContext.canvas.nativeCanvas.apply {
+            drawContext.canvas.nativeCanvas.apply {
                 drawText(
-                    "${(100f / 5 * i).toInt()}", // Y-Wert (z.B. 0, 20, 40, 60, 80, 100)
-                    -30.dp.toPx(), // Korrektur für die Y-Achsenwerte
+                    "${(100f / 5 * i).toInt()}",
+                    -30.dp.toPx(),
                     y + 10.dp.toPx(),
                     Paint().apply {
                         color = android.graphics.Color.WHITE
-                        textSize = 20f
+                        textSize = 30f
                     }
                 )
             }
@@ -652,7 +680,7 @@ fun LineChartWithAxes(data: List<Float>) {
 
         drawContext.canvas.nativeCanvas.apply {
             drawText(
-                "${currentTemperature.toInt()}°C", // Temperaturtext
+                "${currentTemperature.toInt()}°C",
                 lastX + 10.dp.toPx(),
                 lastY - 10.dp.toPx(),
                 Paint().apply {
@@ -664,7 +692,3 @@ fun LineChartWithAxes(data: List<Float>) {
         }
     }
 }
-
-
-
-//14,000 000 MHz - 14,350 000 MHz in 100 Hz schritten

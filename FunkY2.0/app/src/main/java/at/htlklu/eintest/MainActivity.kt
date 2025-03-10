@@ -347,28 +347,42 @@ class MainActivity : ComponentActivity() {
                             // Prüfen, ob der JSON-String vollständig und gültig ist
                             if (fullData.startsWith("{") && fullData.endsWith("}")) {
                                 try {
-                                    // JSON deserialisieren
                                     val parsedFunkyInfo = Json.decodeFromString<FunkyInfo>(fullData)
+                                    if(parsedFunkyInfo.op){
+                                        Log.d("FEHLER", "Fehler")
+                                        sendFunkyInfo(true)
+                                    }else {
+                                        // Frequenz auf genau 4 Nachkommastellen formatieren
+                                        val formattedFrequency = String.format(
+                                            Locale.US,
+                                            "%.4f",
+                                            parsedFunkyInfo.frequency
+                                        ).toFloat()
 
-                                    // Frequenz auf genau 4 Nachkommastellen formatieren
-                                    val formattedFrequency = String.format(Locale.US, "%.4f", parsedFunkyInfo.frequency).toFloat()
+                                        // Daten sofort in FunkyRepository speichern
+                                        MainActivity.FunkyRepository.funkyInfo =
+                                            parsedFunkyInfo.copy(frequency = formattedFrequency)
 
-                                    // Daten sofort in FunkyRepository speichern
-                                    MainActivity.FunkyRepository.funkyInfo = parsedFunkyInfo.copy(frequency = formattedFrequency)
+                                        Log.d(
+                                            "Bluetooth",
+                                            "Erfolgreich gespeichert: ${MainActivity.FunkyRepository.funkyInfo}"
+                                        )
 
-                                    Log.d("Bluetooth", "Erfolgreich gespeichert: ${MainActivity.FunkyRepository.funkyInfo}")
-
-                                    // UI-Update auf dem Main-Thread
-                                    withContext(Dispatchers.Main) {
-                                        receivedData.value = fullData
+                                        // UI-Update auf dem Main-Thread
+                                        withContext(Dispatchers.Main) {
+                                            receivedData.value = fullData
+                                        }
                                     }
 
                                     // Nach erfolgreicher Verarbeitung den String zurücksetzen
                                     fullData = ""
+
                                 } catch (e: Exception) {
                                     Log.e("Bluetooth", "Fehler beim Deserialisieren: ${e.message}")
                                 }
                             }
+                            //Erneutes senden
+
                         }
                     }
                 }
