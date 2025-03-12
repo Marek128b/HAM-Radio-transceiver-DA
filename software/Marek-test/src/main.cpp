@@ -9,19 +9,23 @@
 #include <SD_MMC.h>
 #include "soc/soc.h"
 #include "soc/sdmmc_reg.h"
-#include <ESP32Encoder.h>
+#include <Encoder.h>
 #include <addressable7segment.h>
 #include <Adafruit_NeoPixel.h>
 #include <si5351.h>
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.0.7
+// FIRMWARE VERSION v0.1.0
 // #########################################
 
-String FW_version = "v0.0.7";
+String FW_version = "v0.1.0";
 
-TFT_eSPI tft = TFT_eSPI();    // Invoke custom library
+TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
+TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
+TFT_eSprite spriteStep = TFT_eSprite(&tft);    // Create Sprite object "spriteStep" with pointer to "tft" object
+TFT_eSprite spriteFO = TFT_eSprite(&tft);      // Create Sprite object "spriteFO" with pointer to "tft" object
+
 const int backlight_led = 46; // backlight of LCD
 /*
 TFT_MISO = 18
@@ -42,6 +46,15 @@ unsigned long frequency = 14000000; // in Hz
 unsigned int freqInc = 1000;
 #define IF_Freq 15995200
 Si5351 si5351;
+si5351_drive si5351Level = SI5351_DRIVE_2MA;
+/*
+| Setting | Scope Vpp |  dBm  |
+|---------|-----------|-------|
+|  2 mA   |    0.77   |  +7   |
+|  4 mA   |    1.35   | +12   |
+|  6 mA   |    1.83   | +14   |
+|  8 mA   |    2.09   | +15.5 |
+*/
 int32_t freq_correction = 155989; // Replace with your calculated ppm error
 /*
 9 - SCL
@@ -56,13 +69,11 @@ addressableSegment oneWireDisplay(48, 7); // on pin 48, 7 Segments
 #define SegmentBrightness 255
 
 // init  Encoder object and pins
-static IRAM_ATTR void enc_cb(void *arg);
-ESP32Encoder encoder(true, enc_cb);
 long lastEncoderVal = 0;
-#define encPinA 40
-#define encPinB 41
+#define encPinA 41
+#define encPinB 40
 #define encSW 39
-bool interrupt_encoder_executed = false;
+Encoder encoder(encPinA, encPinB);
 bool interrupt_encoder_switch_executed = false;
 
 #define Ptt_btn 4
@@ -102,6 +113,9 @@ float NTC_ADC2Temperature(unsigned int adc_value)
 void setup()
 {
   Serial.begin(115200);
+  Serial.print("Firmware Version: ");
+  Serial.println(FW_version);
+
   pinMode(backlight_led, OUTPUT);
   analogWrite(backlight_led, 255);
   oneWireDisplay.begin();
@@ -115,6 +129,15 @@ void setup()
   tft.setRotation(3);
   tft.fillScreen(TFT_BLACK); // sets Background color in RGB565 format
 
+  spriteAmpTEMP.setColorDepth(8);      // Create an 8-bit sprite
+  spriteAmpTEMP.createSprite(480, 35); // creating a sprite with dimensions 480x35 pixels.
+
+  spriteStep.setColorDepth(8);      // Create an 8-bit sprite
+  spriteStep.createSprite(480, 45); // creating a sprite with dimensions 480x45 pixels.
+
+  spriteFO.setColorDepth(8);      // Create an 8-bit sprite
+  spriteFO.createSprite(480, 90); // creating a sprite with dimensions 480x90 pixels.
+
   // error correction = frequency error / wanted frequency
   if (!si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, 0))
   {
@@ -126,16 +149,12 @@ void setup()
   {
     Serial.println("Found Si5351 on I2C bus"); // if the si5351 ic is found set the drive strength for both CLK0 and CLK2
     si5351.set_correction(freq_correction, SI5351_PLL_INPUT_XO);
-    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);        // sets the pll A
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); // VFO
-    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_6MA); // BFO
+    si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);   // sets the pll A
+    si5351.drive_strength(SI5351_CLK0, si5351Level); // VFO
+    si5351.drive_strength(SI5351_CLK2, si5351Level); // BFO
     indicator.setPixelColor(0, indicator.Color(0, 0, 10));
     indicator.show();
   }
-
-  ESP32Encoder::useInternalWeakPullResistors = puType::up;
-  // use pin encPinA and encPinB for the first encoder
-  encoder.attachHalfQuad(encPinA, encPinB);
 
   attachInterrupt(encSW, encSW_ISR, FALLING);
 
@@ -155,7 +174,7 @@ void setup()
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
-  char strBuffer[32];
+  char strBuffer[16];
   snprintf(strBuffer, sizeof(strBuffer), "FunkY %s", FW_version); // prints the heading with the current firmware version
   tft.drawString(strBuffer, 0, 0);                                // prints the millis to position 0,0 and with the font #7 which looks good for text
   printRxTxState();
@@ -218,12 +237,11 @@ void loop()
     interrupt_encoder_switch_executed = false;
   }
 
-  if (interrupt_encoder_executed)
+  if (lastEncoderVal != encoder.read())
   {
-    Serial.println("Encoder count = " + String((int32_t)encoder.getCount() / 2));
+    Serial.println("Encoder count = " + encoder.read());
 
-    int enc_diff = ((int32_t)encoder.getCount() / 2) - lastEncoderVal;
-    lastEncoderVal = ((int32_t)encoder.getCount() / 2);
+    int enc_diff = lastEncoderVal - encoder.read();
 
     if (enc_diff > 0)
     {
@@ -246,9 +264,8 @@ void loop()
     printFreq(frequency);
     printVFO_BFO(frequency);
     updateFrequencies(frequency);
-    printRxTxState();
 
-    interrupt_encoder_executed = false;
+    lastEncoderVal = encoder.read();
   }
 
   if (digitalRead(Ptt_btn) != last_rxtx_status)
@@ -294,8 +311,8 @@ void printVoltage()
   tft.setFreeFont(FF7);
   tft.setTextSize(1);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "%.1fV", voltage); // prints the Battery Voltage
-  tft.drawString(strBuffer, 290, 0);                        // prints the millis to position 29,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "%.1fV  ", voltage); // prints the Battery Voltage
+  tft.drawString(strBuffer, 290, 0);                          // prints the millis to position 29,0 and with the font #7 which looks good for text
 }
 
 void printFreq(unsigned long frequency)
@@ -313,19 +330,21 @@ void printFreq(unsigned long frequency)
 void printStep(unsigned int freqInc)
 {
   Serial.println("Step size = " + freqInc);
-  tft.setTextColor(tft.color565(0, 255, 50), TFT_BLACK); // by setting the text background color you can update the text without flickering
-  tft.setFreeFont(FF8);
-  tft.setTextSize(1);
-  char strBuffer[32];
+  spriteStep.setTextColor(tft.color565(0, 255, 50), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteStep.setFreeFont(FF8);
+  spriteStep.setTextSize(1);
+  char strBuffer[16];
   snprintf(strBuffer, sizeof(strBuffer), "Step: %dHz  ", freqInc);
-  tft.drawString(strBuffer, 0, 170); // prints the millis to position 0,99 74+24*2*2
+  spriteStep.drawString(strBuffer, 0, 0);
+
+  spriteStep.pushSprite(0, 160);
 }
 
 void printVFO_BFO(unsigned long frequency)
 {
-  tft.setTextColor(tft.color565(255, 255, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
-  tft.setFreeFont(FF8);
-  tft.setTextSize(1);
+  spriteFO.setTextColor(tft.color565(255, 255, 0), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteFO.setFreeFont(FF8);
+  spriteFO.setTextSize(1);
 
   float vfo_freq = ((float)(frequency * 100) + (float)(IF_Freq * 100)) / (float)100000000;
 
@@ -333,20 +352,17 @@ void printVFO_BFO(unsigned long frequency)
   snprintf(strBuffer, sizeof(strBuffer), "VFO: %.5fMHz  ", vfo_freq);
   Serial.print("SI5351_CLK0 (VFO) = ");
   Serial.println(strBuffer);
-  tft.drawString(strBuffer, 0, 218); // prints the millis to position 0,99 170+2*24
+  spriteFO.drawString(strBuffer, 0, 0); // prints the millis to position 0,99 170+2*24
 
   float bfo_freq = ((float)IF_Freq + (float)2700) / (float)1000000;
 
-  tft.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteFO.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
   snprintf(strBuffer, sizeof(strBuffer), "BFO: %.4fMHz  ", bfo_freq);
   Serial.print("SI5351_CLK2 (BFO) = ");
   Serial.println(strBuffer);
-  tft.drawString(strBuffer, 0, 266); // prints the millis to position 0,99 218+24*2
-}
+  spriteFO.drawString(strBuffer, 0, 50); // prints the millis to position 0,99 218+24*2
 
-static IRAM_ATTR void enc_cb(void *arg)
-{
-  interrupt_encoder_executed = true;
+  spriteFO.pushSprite(0, 218);
 }
 
 // variables to keep track of the timing of recent interrupts
@@ -404,11 +420,13 @@ void updateFrequencies(unsigned long frequency)
 
 void updateNTCTemperature()
 {
-  tft.setTextColor(tft.color565(255, 144, 18),TFT_BLACK); // by setting the text background color you can update the text without flickering
-  tft.setFreeFont(FF7);
-  tft.setTextSize(1);
+  spriteAmpTEMP.setTextColor(tft.color565(255, 144, 18), TFT_BLACK); // by setting the text background color you can update the text without flickering
+  spriteAmpTEMP.setFreeFont(FF7);
+  spriteAmpTEMP.setTextSize(1);
   // tft.drawString(String(millis()), 0, 64);
   char strBuffer[32];
-  snprintf(strBuffer, sizeof(strBuffer), "Amplifier Temp: %.1f°C", NTC_ADC2Temperature(analogRead(NTC_in_pin))); // prints the RX and TX status
-  tft.drawString(strBuffer, 0, 40);                                                            // prints the millis to position 430,0 and with the font #7 which looks good for text
+  snprintf(strBuffer, sizeof(strBuffer), "Amplifier Temp: %.1f°C  ", NTC_ADC2Temperature(analogRead(NTC_in_pin))); // prints the RX and TX status
+  spriteAmpTEMP.drawString(strBuffer, 0, 0);                                                                       // prints the millis to position 430,0 and with the font #7 which looks good for text
+
+  spriteAmpTEMP.pushSprite(0, 35);
 }
