@@ -16,10 +16,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.1.1
+// FIRMWARE VERSION v0.1.2
 // #########################################
 
-String FW_version = "v0.1.1";
+String FW_version = "v0.1.2";
 
 TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
 TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
@@ -235,7 +235,6 @@ void loop()
     }
 
     printStep(freqInc);
-    delay(20); // debounce delay
     interrupt_encoder_switch_executed = false;
   }
 
@@ -356,7 +355,7 @@ void printVFO_BFO(unsigned long frequency)
   Serial.println(strBuffer);
   spriteFO.drawString(strBuffer, 0, 0); // prints the millis to position 0,99 170+2*24
 
-  float bfo_freq = ((float)IF_Freq_upper + (float)(IF_Freq_upper - IF_Freq_lower)) / (float)1000000;
+  float bfo_freq = ((float)IF_Freq_upper - (float)(IF_Freq_upper - IF_Freq_lower) - 200) / (float)1000000;
 
   spriteFO.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
   snprintf(strBuffer, sizeof(strBuffer), "BFO: %.4fMHz  ", bfo_freq);
@@ -370,13 +369,23 @@ void printVFO_BFO(unsigned long frequency)
 // variables to keep track of the timing of recent interrupts
 unsigned long encoder_switch_time = 0;
 unsigned long last_encoder_switch_time = 0;
+bool encoder_switch_pressed = false;
 IRAM_ATTR void encSW_ISR()
 {
-  encoder_switch_time = millis();
-  if (encoder_switch_time - last_encoder_switch_time > 250)
+  if (!digitalRead(encSW)) // Detect initial press
   {
-    interrupt_encoder_switch_executed = true;
-    last_encoder_switch_time = encoder_switch_time;
+    encoder_switch_time = millis();
+  }
+  else // Detect release and check duration
+  {
+    if (millis() - encoder_switch_time > 1000)
+    {
+      if (millis() - last_encoder_switch_time > 500)
+      {
+        interrupt_encoder_switch_executed = true;
+        last_encoder_switch_time = millis();
+      }
+    }
   }
 }
 
@@ -410,7 +419,7 @@ void updateFrequencies(unsigned long frequency)
   // Set CLK2 to hear Signal
   // si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
   // si5351.output_enable(SI5351_CLK2, 1);
-  si5351.set_freq((IF_Freq_upper * 100) + ((IF_Freq_upper - IF_Freq_lower) * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
+  si5351.set_freq((IF_Freq_upper * 100) - ((IF_Freq_upper - IF_Freq_lower) * 100) - (200 * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
 
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
