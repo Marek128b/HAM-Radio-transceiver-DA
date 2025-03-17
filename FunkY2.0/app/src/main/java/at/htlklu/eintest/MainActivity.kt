@@ -41,8 +41,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.Manifest
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -57,7 +62,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -195,6 +203,8 @@ class MainActivity : ComponentActivity() {
 
     private var bluetoothReceiver: BroadcastReceiver? = null
 
+    private var stopScanHandler: Handler? = null // Handler für den Timer
+
     private fun startScanningDevices(scannedDevices: MutableState<List<String>>) {
         if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
             Toast.makeText(
@@ -208,18 +218,21 @@ class MainActivity : ComponentActivity() {
         if (isScanning) {
             bluetoothAdapter?.cancelDiscovery()
             isScanning = false
-            Toast.makeText(this, "Scan gestoppt", Toast.LENGTH_SHORT).show()
 
             // Unregister Receiver sicherstellen
             bluetoothReceiver?.let {
                 unregisterReceiver(it)
                 bluetoothReceiver = null
             }
+
+            // Stoppe den laufenden Handler, falls der Scan manuell gestoppt wurde
+            stopScanHandler?.removeCallbacksAndMessages(null)
+            stopScanHandler = null
+
         } else {
             try {
                 if (bluetoothAdapter?.startDiscovery() == true) {
                     isScanning = true
-                    Toast.makeText(this, "Scan gestartet", Toast.LENGTH_SHORT).show()
 
                     bluetoothReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context?, intent: Intent?) {
@@ -237,8 +250,24 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // Registriere den Receiver
                     registerReceiver(bluetoothReceiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+
+                    // Erstelle und starte einen neuen Handler
+                    stopScanHandler = Handler(Looper.getMainLooper())
+
+                    // Nach 5 Sekunden den Scan automatisch stoppen
+                    stopScanHandler?.postDelayed({
+                        if (isScanning) {
+                            bluetoothAdapter?.cancelDiscovery()
+                            isScanning = false
+                            Toast.makeText(this, "Scan automatisch gestoppt", Toast.LENGTH_SHORT).show()
+                            bluetoothReceiver?.let {
+                                unregisterReceiver(it)
+                                bluetoothReceiver = null
+                            }
+                        }
+                    }, 5000L)
+
                 } else {
                     Log.e("Bluetooth", "startDiscovery() fehlgeschlagen.")
                     Toast.makeText(this, "Scan konnte nicht gestartet werden", Toast.LENGTH_SHORT)
@@ -268,6 +297,8 @@ class MainActivity : ComponentActivity() {
             // Navigiere zum DataScreen
             navController.navigate("dataScreen")
 
+            startSendingFunkyInfoPeriodically()
+
         } catch (e: IOException) {
             e.printStackTrace()
             Log.e("Bluetooth", "Verbindungsfehler: ${e.message}")
@@ -280,6 +311,7 @@ class MainActivity : ComponentActivity() {
             // Falls ein Fehler beim Schließen oder Verbinden auftritt, versuche den Socket zu schließen
             try {
                 bluetoothSocket?.close()
+                stopFunkyInfoTask()
             } catch (closeException: IOException) {
                 Log.e("Bluetooth", "Fehler beim Schließen des Sockets: ${closeException.message}")
             }
@@ -288,23 +320,12 @@ class MainActivity : ComponentActivity() {
 
     fun disconnectFromDevice(bluetoothSocket: BluetoothSocket?, navController: NavController) {
         try {
+            stopFunkyInfoTask()
             bluetoothSocket?.close()
             navController.navigate("bluetoothScreen")
             Log.d("Bluetooth", "Verbindung erfolgreich getrennt.")
         } catch (e: IOException) {
             Log.e("Bluetooth", "Fehler beim Trennen der Verbindung", e)
-        }
-    }
-
-    private fun connectToDeviceFromScannedList(deviceInfo: String) {
-        try {
-            // Extrahiere die Geräteadresse aus dem String (z. B. "DeviceName (00:11:22:33:44:55)")
-            val deviceAddress = deviceInfo.substringAfterLast("(").substringBefore(")")
-            val device = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                ?: bluetoothAdapter?.getRemoteDevice(deviceAddress)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Log.e("Bluetooth", "Fehler bei Verbindung zu $deviceInfo: ${e.message}")
         }
     }
 
@@ -355,7 +376,7 @@ class MainActivity : ComponentActivity() {
                                     val parsedFunkyInfo = Json.decodeFromString<FunkyInfo>(fullData)
                                     if(parsedFunkyInfo.op){
                                         Log.d("FEHLER", "Fehler")
-                                        sendFunkyInfo(true)
+                                        sendFunkyInfo(false)
                                     }else {
                                         // Frequenz auf genau 4 Nachkommastellen formatieren
                                         val formattedFrequency = String.format(
@@ -502,7 +523,7 @@ class MainActivity : ComponentActivity() {
                                     Icon(
                                         imageVector = Icons.Rounded.Check,
                                         contentDescription = "Verbinden",
-                                        modifier = Modifier.size(35.dp),
+                                        modifier = Modifier.size(40.dp),
                                         tint = Color.Blue
                                     )
                                 }
@@ -542,18 +563,29 @@ class MainActivity : ComponentActivity() {
                     when (ObserveCurrentScreen(navController)) {
                         // Scannen-Button (Bluetooth Screen)
                         "bluetoothScreen" -> {
+                            // Animierte Skalierung, die beim Drücken des Buttons stattfindet
+                            val scale by animateFloatAsState(
+                                targetValue = if (isScanning) 0.9f else 1f, // Skaliert den Button beim Drücken
+                                animationSpec = tween(durationMillis = 150) // Dauer der Animation (150 ms)
+                            )
+
                             Box(
                                 modifier = Modifier.size(80.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 IconButton(
-                                    modifier = Modifier.size(64.dp),
-                                    onClick = { startScanningDevices(scannedDevices) }
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .graphicsLayer(scaleX = scale, scaleY = scale), // Anwendung der Skalierung
+                                    onClick = {
+                                        // Startet das Scannen, nach dem Drücken
+                                        startScanningDevices(scannedDevices)
+                                    }
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Search,
                                         contentDescription = "Scannen",
-                                        modifier = Modifier.size(35.dp),
+                                        modifier = Modifier.size(40.dp),
                                         tint = if (isScanning) Color.Red else Color(0xFF199A40)
                                     )
                                 }
@@ -597,7 +629,7 @@ class MainActivity : ComponentActivity() {
                             Icon(
                                 imageVector = Icons.Rounded.Send,
                                 contentDescription = "Senden",
-                                modifier = Modifier.size(35.dp),
+                                modifier = Modifier.size(40.dp),
                                 tint = Color.Blue
                             )
                         }
@@ -606,7 +638,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
 
     @Composable
     fun BluetoothApp(
@@ -683,7 +714,7 @@ class MainActivity : ComponentActivity() {
                                     pairedDevices.forEach { device ->
                                         var isPressed by remember { mutableStateOf(false) }
                                         val animatedColor by animateColorAsState(
-                                            targetValue = if (isPressed) Color(0xFF4444FF) else Color(0x1F4444FF)
+                                            targetValue = if (isPressed) Color(0xFF17632E) else Color(0x1F4444FF)
                                         )
                                         val scale by animateFloatAsState(
                                             targetValue = if (isPressed) 0.95f else 1f
@@ -697,34 +728,46 @@ class MainActivity : ComponentActivity() {
                                                     scaleX = scale
                                                     scaleY = scale
                                                 }
-                                                .clip(RoundedCornerShape(10.dp)) // Abgerundete Ecken
-                                                .background(animatedColor) // Animierter Hintergrund
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(animatedColor)
+                                                .then(
+                                                    if (selectedDeviceName == device)
+                                                        Modifier.border(BorderStroke(3.dp, Color(0xFF199A40)), shape = RoundedCornerShape(10.dp))
+                                                            .background(Color(0xFF17632E))
+                                                    else Modifier
+                                                )
                                                 .pointerInput(Unit) {
                                                     detectTapGestures(
                                                         onPress = {
-                                                            // Animation starten
                                                             isPressed = true
-                                                            // Warten bis der Finger losgelassen wird
                                                             tryAwaitRelease()
                                                             isPressed = false
-                                                            // Klick-Logik ausführen
                                                             selectedDeviceName = device
                                                             val deviceAddress = device.substringAfterLast("(").substringBefore(")")
                                                             selectedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                                                            Toast.makeText(
-                                                                applicationContext,
-                                                                "Ausgewählt: $device",
-                                                                Toast.LENGTH_SHORT
-                                                            ).show()
                                                         }
                                                     )
                                                 }
-                                                .padding(20.dp) // Inneres Padding
-                                        )
-                                        {
-                                            Text(device, color = Color.White, fontSize = 16.sp)
+                                                .padding(20.dp)
+                                        ) {
+                                            // Geräteinformationen in zwei Zeilen: Gerätename und MAC-Adresse
+                                            Column {
+                                                val deviceName = device.substringBefore("(").trim()
+                                                val macAddress = device.substringAfter("(").substringBefore(")").trim()
+                                                Text(
+                                                    text = deviceName,
+                                                    color = Color.White,
+                                                    fontSize = 16.sp
+                                                )
+                                                Text(
+                                                    text = macAddress,
+                                                    color = Color.White,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
                                         }
                                     }
+
                                 }
                             }
                         }
@@ -776,40 +819,68 @@ class MainActivity : ComponentActivity() {
                                             .height(5.dp)
                                     )
                                     scannedDevices.value.forEach { device ->
+                                        var isPressed by remember { mutableStateOf(false) }
+                                        val animatedColor by animateColorAsState(
+                                            targetValue = if (isPressed) Color(0xAF4444FF) else Color(0x1F4444FF)
+                                        )
+                                        val scale by animateFloatAsState(
+                                            targetValue = if (isPressed) 0.95f else 1f
+                                        )
+
                                         Box(
                                             modifier = Modifier
                                                 .padding(10.dp, 0.dp, 10.dp, 10.dp)
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(Color(0x1F4444FF))
-                                                //.background(Color(0x2F0000FF))
-                                                .clickable(onClick = {
-                                                    selectedDeviceName = device
-                                                    val deviceAddress =
-                                                        device.substringAfterLast("(")
-                                                            .substringBefore(")")
-                                                    selectedDevice =
-                                                        bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                                                    Toast.makeText(
-                                                        applicationContext,
-                                                        "Ausgewählt: $device",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                    connectToDeviceFromScannedList(device)
-                                                    startListeningForData(receivedData)
-                                                })
-                                                .padding(20.dp) // Padding innerhalb der abgerundeten Box
+                                                .graphicsLayer {
+                                                    scaleX = scale
+                                                    scaleY = scale
+                                                }
+                                                .clip(RoundedCornerShape(10.dp)) // Abgerundete Ecken
+                                                .background(animatedColor) // Animierter Hintergrund
+                                                .then(
+                                                    if (selectedDeviceName == device)
+                                                        Modifier.border(BorderStroke(3.dp, Color(0xFF199A40)), shape = RoundedCornerShape(10.dp))
+                                                            .background(Color(0xFF17632E))
+                                                    else Modifier
+                                                )
+                                                .pointerInput(Unit) {
+                                                    detectTapGestures(
+                                                        onPress = {
+                                                            // Animation starten
+                                                            isPressed = true
+                                                            // Warten bis der Finger losgelassen wird
+                                                            tryAwaitRelease()
+                                                            isPressed = false
+                                                            // Klick-Logik ausführen
+                                                            selectedDeviceName = device
+                                                            val deviceAddress = device.substringAfterLast("(").substringBefore(")")
+                                                            selectedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                                                        }
+                                                    )
+                                                }
+                                                .padding(20.dp) // Inneres Padding
                                         )
-
                                         {
-                                            Text(device, color = Color.White, fontSize = 16.sp)
+                                            Column {
+                                                val deviceName = device.substringBefore("(").trim()
+                                                val macAddress = device.substringAfter("(").substringBefore(")").trim()
+                                                Text(
+                                                    text = deviceName,
+                                                    color = Color.White,
+                                                    fontSize = 16.sp
+                                                )
+                                                Text(
+                                                    text = macAddress,
+                                                    color = Color.White,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-
 
                     item {
                         Spacer(modifier = Modifier.height(100.dp))
@@ -819,4 +890,32 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private var funkyInfoHandler: Handler? = null
+
+    private fun startSendingFunkyInfoPeriodically() {
+        if (funkyInfoHandler == null) {
+            funkyInfoHandler = Handler(Looper.getMainLooper())
+        }
+
+        val funkyInfoRunnable = object : Runnable {
+            override fun run() {
+                if (bluetoothSocket?.isConnected == true) {
+                    sendFunkyInfo(false)
+                    Log.d("Bluetooth", "sendFunkyInfo(false) wurde aufgerufen.")
+                }
+
+                funkyInfoHandler?.postDelayed(this, 10000L)
+            }
+        }
+
+        funkyInfoHandler?.post(funkyInfoRunnable)
+    }
+
+    private fun stopFunkyInfoTask() {
+        funkyInfoHandler?.removeCallbacksAndMessages(null)
+        funkyInfoHandler = null
+    }
+
+
 }

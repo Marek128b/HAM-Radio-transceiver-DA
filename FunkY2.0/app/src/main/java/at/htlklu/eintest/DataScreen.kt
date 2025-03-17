@@ -2,6 +2,7 @@ package at.htlklu.eintest.ui
 
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.os.Looper
 import android.util.Log
 import android.util.Size
 import androidx.compose.foundation.Canvas
@@ -39,6 +40,7 @@ import at.htlklu.eintest.MainActivity
 import at.htlklu.eintest.data.FunkyInfo
 import java.util.Locale
 import kotlinx.serialization.json.Json
+import java.util.logging.Handler
 
 @Composable
 fun DataScreen(navController: NavController) {
@@ -511,7 +513,13 @@ fun BatteryVisual(modifier: Modifier = Modifier, batteryLevel: Float) {
     val batteryPadding = 4.dp   // Innenabstand für das grüne Fülllevel
     val batteryRounded = 10.dp
 
-
+    // Dynamische Farbe basierend auf dem Ladezustand
+    val batteryColor = when {
+        batteryLevel >= 0.75f -> Color(0xFF199A40)  // Grün bei 75% und mehr
+        batteryLevel >= 0.5f -> Color(0xFF66BB6A)  // Helles Grün
+        batteryLevel >= 0.25f -> Color(0xFFFB8C00)  // Orange
+        else -> Color(0xFFEF5350)  // Rot bei weniger als 25%
+    }
 
     Box(
         modifier = modifier
@@ -553,7 +561,7 @@ fun BatteryVisual(modifier: Modifier = Modifier, batteryLevel: Float) {
                             (batteryWidth - batteryPadding * 2) * batteryLevel.coerceIn(0f, 1f)
                         ) // Dynamische Breite des grünen Bereichs basierend auf batteryLevel
                         .background(
-                            Color(0xFF199A40),
+                            batteryColor,
                             RoundedCornerShape(batteryRounded - batteryPadding)
                         )
                 )
@@ -561,6 +569,7 @@ fun BatteryVisual(modifier: Modifier = Modifier, batteryLevel: Float) {
         }
     }
 }
+
 
 @Composable
 fun TemperatureTracker(modifier: Modifier) {
@@ -692,3 +701,4 @@ fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
         }
     }
 }
+
