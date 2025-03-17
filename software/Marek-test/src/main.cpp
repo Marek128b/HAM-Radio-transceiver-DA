@@ -410,7 +410,7 @@ void updateFrequencies(unsigned long frequency)
   // Set CLK2 to hear Signal
   // si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
   // si5351.output_enable(SI5351_CLK2, 1);
-  si5351.set_freq((IF_Freq_lower * 100) + ((IF_Freq_upper - IF_Freq_lower) * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
+  si5351.set_freq((IF_Freq_upper * 100) + ((IF_Freq_upper - IF_Freq_lower) * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
 
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
