@@ -16,10 +16,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.1.0
+// FIRMWARE VERSION v0.1.1
 // #########################################
 
-String FW_version = "v0.1.0";
+String FW_version = "v0.1.1";
 
 TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
 TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
@@ -42,9 +42,10 @@ TFT_BACKLIGHT_ON = 1
 */
 
 // calibration: 155989 on 22.10.2024
-unsigned long frequency = 14000000; // in Hz
+unsigned long frequency = 14074000; // in Hz
 unsigned int freqInc = 1000;
-#define IF_Freq 15995200
+#define IF_Freq_lower 15995000
+#define IF_Freq_upper 15997500
 Si5351 si5351;
 si5351_drive si5351Level = SI5351_DRIVE_2MA;
 /*
@@ -234,6 +235,7 @@ void loop()
     }
 
     printStep(freqInc);
+    delay(20); // debounce delay
     interrupt_encoder_switch_executed = false;
   }
 
@@ -346,7 +348,7 @@ void printVFO_BFO(unsigned long frequency)
   spriteFO.setFreeFont(FF8);
   spriteFO.setTextSize(1);
 
-  float vfo_freq = ((float)(frequency * 100) + (float)(IF_Freq * 100)) / (float)100000000;
+  float vfo_freq = ((float)(frequency * 100) + (float)(IF_Freq_lower * 100)) / (float)100000000;
 
   char strBuffer[32];
   snprintf(strBuffer, sizeof(strBuffer), "VFO: %.5fMHz  ", vfo_freq);
@@ -354,7 +356,7 @@ void printVFO_BFO(unsigned long frequency)
   Serial.println(strBuffer);
   spriteFO.drawString(strBuffer, 0, 0); // prints the millis to position 0,99 170+2*24
 
-  float bfo_freq = ((float)IF_Freq + (float)2700) / (float)1000000;
+  float bfo_freq = ((float)IF_Freq_upper + (float)(IF_Freq_upper - IF_Freq_lower)) / (float)1000000;
 
   spriteFO.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
   snprintf(strBuffer, sizeof(strBuffer), "BFO: %.4fMHz  ", bfo_freq);
@@ -403,12 +405,12 @@ void updateFrequencies(unsigned long frequency)
   // Set CLK0 to output VFO
   // si5351.set_ms_source(SI5351_CLK0, SI5351_PLLA);
   // si5351.output_enable(SI5351_CLK0, 1);
-  si5351.set_freq((frequency * 100) + (IF_Freq * 100), SI5351_CLK0); // VFO (frequency * 100) + (IF_Freq * 100)
+  si5351.set_freq((frequency * 100) + (IF_Freq_lower * 100), SI5351_CLK0); // VFO (frequency * 100) + (IF_Freq * 100)
 
   // Set CLK2 to hear Signal
   // si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
   // si5351.output_enable(SI5351_CLK2, 1);
-  si5351.set_freq((IF_Freq * 100) + (2700 * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
+  si5351.set_freq((IF_Freq_lower * 100) + ((IF_Freq_upper - IF_Freq_lower) * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
 
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
