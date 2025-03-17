@@ -41,6 +41,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.Manifest
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -60,6 +63,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 
@@ -676,26 +681,45 @@ class MainActivity : ComponentActivity() {
                                             .height(5.dp)
                                     )
                                     pairedDevices.forEach { device ->
+                                        var isPressed by remember { mutableStateOf(false) }
+                                        val animatedColor by animateColorAsState(
+                                            targetValue = if (isPressed) Color(0xFF4444FF) else Color(0x1F4444FF)
+                                        )
+                                        val scale by animateFloatAsState(
+                                            targetValue = if (isPressed) 0.95f else 1f
+                                        )
+
                                         Box(
                                             modifier = Modifier
                                                 .padding(10.dp, 0.dp, 10.dp, 10.dp)
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(10.dp)) // Clip kommt hier, um abgerundete Ecken auf die Box anzuwenden
-                                                .background(Color(0x1F4444FF)) // Hintergrund mit abgerundeten Ecken
-                                                .clickable(onClick = {
-                                                    selectedDeviceName = device
-                                                    val deviceAddress =
-                                                        device.substringAfterLast("(")
-                                                            .substringBefore(")")
-                                                    selectedDevice =
-                                                        bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
-                                                    Toast.makeText(
-                                                        applicationContext,
-                                                        "Ausgewählt: $device",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                })
-                                                .padding(20.dp) // Padding innerhalb der abgerundeten Box
+                                                .graphicsLayer {
+                                                    scaleX = scale
+                                                    scaleY = scale
+                                                }
+                                                .clip(RoundedCornerShape(10.dp)) // Abgerundete Ecken
+                                                .background(animatedColor) // Animierter Hintergrund
+                                                .pointerInput(Unit) {
+                                                    detectTapGestures(
+                                                        onPress = {
+                                                            // Animation starten
+                                                            isPressed = true
+                                                            // Warten bis der Finger losgelassen wird
+                                                            tryAwaitRelease()
+                                                            isPressed = false
+                                                            // Klick-Logik ausführen
+                                                            selectedDeviceName = device
+                                                            val deviceAddress = device.substringAfterLast("(").substringBefore(")")
+                                                            selectedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                                                            Toast.makeText(
+                                                                applicationContext,
+                                                                "Ausgewählt: $device",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    )
+                                                }
+                                                .padding(20.dp) // Inneres Padding
                                         )
                                         {
                                             Text(device, color = Color.White, fontSize = 16.sp)
