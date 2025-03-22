@@ -16,10 +16,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.1.2
+// FIRMWARE VERSION v0.1.3
 // #########################################
 
-String FW_version = "v0.1.2";
+String FW_version = "v0.1.3";
 
 TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
 TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
@@ -94,7 +94,7 @@ unsigned long long lastNTCMeasurementMs = 0;
 
 // ##############################################################################################################################
 static IRAM_ATTR void enc_cb(void *arg);
-IRAM_ATTR void encSW_ISR();
+void encSW_read();
 void rxtx_switch();
 void printRxTxState();
 void printFreq(unsigned long frequency);
@@ -157,7 +157,7 @@ void setup()
     indicator.show();
   }
 
-  attachInterrupt(encSW, encSW_ISR, FALLING);
+  pinMode(encSW, INPUT);
 
   // NTC input
   pinMode(NTC_in_pin, INPUT);
@@ -202,40 +202,41 @@ void loop()
     updateNTCTemperature();
   }
 
-  if (interrupt_encoder_switch_executed)
-  {
-    Serial.println("encoder switch executed");
+  // read switch state and update "interrupt_encoder_switch_executed"
+  encSW_read();
 
-    switch (freqInc)
+  if (interrupt_encoder_switch_executed == true)
+  {
+    interrupt_encoder_switch_executed = false;
+    Serial.println("Encoder switch executed");
+
+    // Define the sequence of frequency increments
+    const int freqSteps[] = {100, 250, 500, 1000, 2500, 5000, 10000};
+    const int numSteps = sizeof(freqSteps) / sizeof(freqSteps[0]);
+
+    // Find the current position in the array
+    int index = -1;
+    for (int i = 0; i < numSteps; i++)
     {
-    case 100:
-      freqInc = 10000;
-      break;
-    case 250:
-      freqInc = 100;
-      break;
-    case 500:
-      freqInc = 250;
-      break;
-    case 1000:
-      freqInc = 500;
-      break;
-    case 2500:
-      freqInc = 1000;
-      break;
-    case 5000:
-      freqInc = 2500;
-      break;
-    case 10000:
-      freqInc = 5000;
-      break;
-    default:
-      freqInc = 10000;
-      break;
+      if (freqInc == freqSteps[i])
+      {
+        index = i;
+        break;
+      }
+    }
+
+    // If freqInc is not in the array, reset to default (optional safeguard)
+    if (index == -1)
+    {
+      freqInc = freqSteps[0]; // Set to first step
+    }
+    else
+    {
+      // Move to the next step in sequence (looping back if needed)
+      freqInc = freqSteps[(index + 1) % numSteps];
     }
 
     printStep(freqInc);
-    interrupt_encoder_switch_executed = false;
   }
 
   if (lastEncoderVal != encoder.read())
@@ -279,11 +280,11 @@ void loop()
 // ##############################################################################################################################
 void updateVoltage()
 {
-  Serial.println("Vbat adc value");
-  Serial.println(analogRead(Vbat_pin));
-  Serial.println("Vbat Voltage");
+  //Serial.println("Vbat adc value");
+  //Serial.println(analogRead(Vbat_pin));
+  //Serial.println("Vbat Voltage");
   voltage = (float)(((float)analogRead(Vbat_pin)) / (float)4095) * 3.3 * (12.2 / 2.2) + 0.6;
-  Serial.println(voltage);
+  //Serial.println(voltage);
   printVoltage();
 }
 
@@ -335,7 +336,7 @@ void printStep(unsigned int freqInc)
   spriteStep.setFreeFont(FF8);
   spriteStep.setTextSize(1);
   char strBuffer[16];
-  snprintf(strBuffer, sizeof(strBuffer), "Step: %dHz  ", freqInc);
+  snprintf(strBuffer, sizeof(strBuffer), "Step: %dHz   ", freqInc);
   spriteStep.drawString(strBuffer, 0, 0);
 
   spriteStep.pushSprite(0, 160);
@@ -355,7 +356,7 @@ void printVFO_BFO(unsigned long frequency)
   Serial.println(strBuffer);
   spriteFO.drawString(strBuffer, 0, 0); // prints the millis to position 0,99 170+2*24
 
-  float bfo_freq = ((float)IF_Freq_upper - (float)(IF_Freq_upper - IF_Freq_lower) - 200) / (float)1000000;
+  float bfo_freq = ((float)IF_Freq_upper + 200) / (float)1000000;
 
   spriteFO.setTextColor(TFT_CYAN, TFT_BLACK); // by setting the text background color you can update the text without flickering
   snprintf(strBuffer, sizeof(strBuffer), "BFO: %.4fMHz  ", bfo_freq);
@@ -369,23 +370,19 @@ void printVFO_BFO(unsigned long frequency)
 // variables to keep track of the timing of recent interrupts
 unsigned long encoder_switch_time = 0;
 unsigned long last_encoder_switch_time = 0;
-bool encoder_switch_pressed = false;
-IRAM_ATTR void encSW_ISR()
+void encSW_read()
 {
-  if (!digitalRead(encSW)) // Detect initial press
+  if (!digitalRead(encSW)) // Detect release
+  {
+    if (millis() - last_encoder_switch_time > 500)
+    {
+      interrupt_encoder_switch_executed = true;
+      last_encoder_switch_time = millis();
+    }
+  }
+  else // Detect press
   {
     encoder_switch_time = millis();
-  }
-  else // Detect release and check duration
-  {
-    if (millis() - encoder_switch_time > 1000)
-    {
-      if (millis() - last_encoder_switch_time > 500)
-      {
-        interrupt_encoder_switch_executed = true;
-        last_encoder_switch_time = millis();
-      }
-    }
   }
 }
 
@@ -419,7 +416,7 @@ void updateFrequencies(unsigned long frequency)
   // Set CLK2 to hear Signal
   // si5351.set_ms_source(SI5351_CLK2, SI5351_PLLB);
   // si5351.output_enable(SI5351_CLK2, 1);
-  si5351.set_freq((IF_Freq_upper * 100) - ((IF_Freq_upper - IF_Freq_lower) * 100) - (200 * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
+  si5351.set_freq((IF_Freq_upper * 100) + (200 * 100), SI5351_CLK2); // BFO (IF_Freq * 100) + (2700 * 100)
 
   // Query a status update and wait a bit to let the Si5351 populate the
   // status flags correctly.
