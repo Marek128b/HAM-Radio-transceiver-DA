@@ -7,6 +7,7 @@ BluetoothSerial SerialBT;
 // Allocate the JSON document
 JsonDocument doc;
 JsonDocument docSend;
+DeserializationError desError;
 
 // Pseudo Values
 float frequency = 14.150; // in MHz
@@ -59,13 +60,30 @@ void handleBT()
       if (incomingChar == '\n')
       { // End of message
         Serial.println("Received: " + s_in);
-        deserializeJson(doc, s_in);
+        desError = deserializeJson(doc, s_in);
         s_in = ""; // Clear buffer
       }
       else
       {
         s_in += incomingChar;
       }
+    }
+    if (desError)
+    {
+      docSend.clear();
+      docSend["op"] = true;
+      docSend["frequency"] = 0.00;
+      docSend["voltage"] = 1.00;
+      docSend["name"] = name;
+      docSend["call"] = call;
+      docSend["temperature"] = 0.0;
+      
+      String out;
+      serializeJson(docSend, out);
+
+      Serial.println("ERROR returned: ");
+      Serial.println(desError.c_str());
+      SerialBT.println(out);
     }
 
     if (doc["op"]) // set value code
@@ -83,13 +101,14 @@ void handleBT()
     else if (doc["op"] == 0) // get value code
     {
       docSend.clear();
+      docSend["op"] = false;
       if (doc["frequency"].as<String>() != "null")
       {
         docSend["frequency"] = frequency;
       }
       if (doc["voltage"].as<String>() != "null")
       {
-        docSend["voltage"] = round((3 * (3.7 + ((float)random(4) / (float)10))) * 1000.0) / 1000.0;
+        docSend["voltage"] = round((3 * (3.3 + ((float)random(9) / (float)10))) * 1000.0) / 1000.0;
       }
       if (doc["name"].as<String>() != "null")
       {
