@@ -494,7 +494,7 @@ fun BatteryIndicator(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center
         )
         Text(
-            text = MainActivity.FunkyRepository.funkyInfo.voltage.toString() + "V",
+            text = String.format("%.1f", MainActivity.FunkyRepository.funkyInfo.voltage) + "V",
             color = Color.White,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
@@ -569,7 +569,6 @@ fun BatteryVisual(modifier: Modifier = Modifier, batteryLevel: Float) {
         }
     }
 }
-
 
 @Composable
 fun TemperatureTracker(modifier: Modifier) {
@@ -689,9 +688,9 @@ fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
 
         drawContext.canvas.nativeCanvas.apply {
             drawText(
-                "${currentTemperature.toInt()}°C",
-                lastX + 10.dp.toPx(),
-                lastY - 10.dp.toPx(),
+                String.format("%.1f", currentTemperature)+"°C",
+                lastX + 5.dp.toPx(),
+                lastY + 0.dp.toPx(),
                 Paint().apply {
                     color = android.graphics.Color.WHITE
                     textSize = 40f

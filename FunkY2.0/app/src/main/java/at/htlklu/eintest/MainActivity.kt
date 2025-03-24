@@ -73,8 +73,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import at.htlklu.eintest.data.FunkyTempInfo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.floatOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 
 class MainActivity : ComponentActivity() {
@@ -329,17 +334,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun sendFunkyInfo(op: Boolean) {
+    private fun sendFunkyInfo(op: Boolean, onlyTemp: Boolean) {
         try {
             if (bluetoothSocket?.isConnected == true) {
-                FunkyRepository.funkyInfo.op = op
-                val jsonString = Json.encodeToString(FunkyRepository.funkyInfo) + "\n"
+                if (!onlyTemp) {
+                    FunkyRepository.funkyInfo.op = op
+                    val jsonString = Json.encodeToString(FunkyRepository.funkyInfo) + "\n"
 
-                outputStream?.write(jsonString.toByteArray(Charsets.UTF_8))
-                outputStream?.flush()
+                    outputStream?.write(jsonString.toByteArray(Charsets.UTF_8))
+                    outputStream?.flush()
 
-                Log.d("Bluetooth", "JSON gesendet: $jsonString")
-                //Toast.makeText(this, "Nachricht gesendet: $jsonString", Toast.LENGTH_SHORT).show()
+                    Log.d("Bluetooth", "JSON gesendet: $jsonString")
+                }else{
+                    var funkyTempInfo = FunkyTempInfo(op, FunkyRepository.funkyInfo.temperature)
+                    val jsonString = Json.encodeToString(funkyTempInfo) + "\n"
+
+                    outputStream?.write(jsonString.toByteArray(Charsets.UTF_8))
+                    outputStream?.flush()
+
+                    Log.d("Bluetooth", "JSON Temp gesendet: $jsonString")
+                }
             } else {
                 Toast.makeText(this, "Bluetooth ist nicht verbunden", Toast.LENGTH_SHORT).show()
             }
@@ -347,6 +361,51 @@ class MainActivity : ComponentActivity() {
             e.printStackTrace()
             Log.e("Bluetooth", "Fehler beim Senden der Nachricht: ${e.message}")
             Toast.makeText(this, "Fehler beim Senden: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun processIncomingJson(data: String){
+        try {
+            // Versuche, die Daten als FunkyInfo zu deserialisieren
+            val parsedData = try {
+                Json.decodeFromString<FunkyInfo>(data)
+            } catch (e: Exception) {
+                // Falls deserialisieren als FunkyInfo fehlschlägt, versuche es als FunkyTempInfo
+                Log.e("FunkyInfo", "Fehler bei der Deserialisierung von FunkyInfo: ${e.message}")
+                null
+            }
+
+            // Wenn es als FunkyInfo deserialisiert wurde, speichere es
+            parsedData?.let {
+                // Speichern von FunkyInfo in MainActivity.FunkyRepository
+                if (!it.op) {
+                    FunkyRepository.funkyInfo = it
+                }
+                Log.d("FunkyInfo", "FunkyInfo erfolgreich gespeichert: ${it}")
+            } ?: run {
+                // Wenn deserialisieren als FunkyInfo fehlschlug, versuche FunkyTempInfo
+                val tempData = try {
+                    Json.decodeFromString<FunkyTempInfo>(data)
+                } catch (e: Exception) {
+                    // Falls auch das fehlschlägt, logge den Fehler und breche ab
+                    Log.e("FunkyTempInfo", "Fehler bei der Deserialisierung von FunkyTempInfo: ${e.message}")
+                    return
+                }
+
+                // Speichern von FunkyTempInfo in MainActivity.FunkyRepository
+                MainActivity.FunkyRepository.funkyInfo = FunkyInfo(
+                    op = tempData.op,
+                    frequency = MainActivity.FunkyRepository.funkyInfo.frequency,  // Setze Standardwerte
+                    voltage = MainActivity.FunkyRepository.funkyInfo.voltage,
+                    name = MainActivity.FunkyRepository.funkyInfo.name,
+                    call = MainActivity.FunkyRepository.funkyInfo.call,
+                    temperature = tempData.temperature
+                )
+                Log.d("FunkyTempInfo", "FunkyTempInfo erfolgreich gespeichert: ${tempData}")
+            }
+        } catch (e: Exception) {
+            Log.e("PROCESSJSON", "Fehler bei der Verarbeitung der Daten: ${e.message}")
+            sendFunkyInfo(false, false)
         }
     }
 
@@ -373,32 +432,7 @@ class MainActivity : ComponentActivity() {
                             // Prüfen, ob der JSON-String vollständig und gültig ist
                             if (fullData.startsWith("{") && fullData.endsWith("}")) {
                                 try {
-                                    val parsedFunkyInfo = Json.decodeFromString<FunkyInfo>(fullData)
-                                    if(parsedFunkyInfo.op){
-                                        Log.d("FEHLER", "Fehler")
-                                        sendFunkyInfo(false)
-                                    }else {
-                                        // Frequenz auf genau 4 Nachkommastellen formatieren
-                                        val formattedFrequency = String.format(
-                                            Locale.US,
-                                            "%.4f",
-                                            parsedFunkyInfo.frequency
-                                        ).toFloat()
-
-                                        // Daten sofort in FunkyRepository speichern
-                                        MainActivity.FunkyRepository.funkyInfo =
-                                            parsedFunkyInfo.copy(frequency = formattedFrequency)
-
-                                        Log.d(
-                                            "Bluetooth",
-                                            "Erfolgreich gespeichert: ${MainActivity.FunkyRepository.funkyInfo}"
-                                        )
-
-                                        // UI-Update auf dem Main-Thread
-                                        withContext(Dispatchers.Main) {
-                                            receivedData.value = fullData
-                                        }
-                                    }
+                                    processIncomingJson(fullData)
 
                                     // Nach erfolgreicher Verarbeitung den String zurücksetzen
                                     fullData = ""
@@ -407,8 +441,6 @@ class MainActivity : ComponentActivity() {
                                     Log.e("Bluetooth", "Fehler beim Deserialisieren: ${e.message}")
                                 }
                             }
-                            //Erneutes senden
-
                         }
                     }
                 }
@@ -450,6 +482,32 @@ class MainActivity : ComponentActivity() {
         return currentRoute
     }
 
+    private var funkyInfoHandler: Handler? = null
+
+    private fun startSendingFunkyInfoPeriodically() {
+        if (funkyInfoHandler == null) {
+            funkyInfoHandler = Handler(Looper.getMainLooper())
+        }
+
+        val funkyInfoRunnable = object : Runnable {
+            override fun run() {
+                if (bluetoothSocket?.isConnected == true) {
+                    sendFunkyInfo(false, true)
+                    Log.d("Bluetooth", "sendFunkyInfo(false) wurde aufgerufen.")
+                }
+
+                funkyInfoHandler?.postDelayed(this, 20000L)
+            }
+        }
+
+        funkyInfoHandler?.post(funkyInfoRunnable)
+    }
+
+    private fun stopFunkyInfoTask() {
+        funkyInfoHandler?.removeCallbacksAndMessages(null)
+        funkyInfoHandler = null
+    }
+
     @Composable
     fun AppNavigation() {
         val navController = rememberNavController()
@@ -488,7 +546,7 @@ class MainActivity : ComponentActivity() {
                     .padding(20.dp)
                     .height(60.dp)
                     .clip(RoundedCornerShape(40.dp))
-                    .background(Color(0xAFFFFFFF))
+                    .background(Color(0x8F000000))
                     .clickable(enabled = true, onClick = {}) // Verhindert Durchklicken
             ) {
                 Row(
@@ -512,7 +570,7 @@ class MainActivity : ComponentActivity() {
                                         selectedDevice?.let {
                                             connectToDevice(it, navController)
                                             startListeningForData(receivedData)
-                                            sendFunkyInfo(false)
+                                            sendFunkyInfo(false, false)
                                         } ?: Toast.makeText(
                                             applicationContext,
                                             "Kein Gerät ausgewählt",
@@ -601,7 +659,7 @@ class MainActivity : ComponentActivity() {
                                 IconButton(
                                     modifier = Modifier.size(64.dp),
                                     onClick = {
-                                        sendFunkyInfo(false)
+                                        sendFunkyInfo(false, false)
                                     }
                                 ) {
                                     Icon(
@@ -623,7 +681,7 @@ class MainActivity : ComponentActivity() {
                         IconButton(
                             modifier = Modifier.size(64.dp),
                             onClick = {
-                                sendFunkyInfo(true)
+                                sendFunkyInfo(true, false)
                             }
                         ) {
                             Icon(
@@ -889,32 +947,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    private var funkyInfoHandler: Handler? = null
-
-    private fun startSendingFunkyInfoPeriodically() {
-        if (funkyInfoHandler == null) {
-            funkyInfoHandler = Handler(Looper.getMainLooper())
-        }
-
-        val funkyInfoRunnable = object : Runnable {
-            override fun run() {
-                if (bluetoothSocket?.isConnected == true) {
-                    sendFunkyInfo(false)
-                    Log.d("Bluetooth", "sendFunkyInfo(false) wurde aufgerufen.")
-                }
-
-                funkyInfoHandler?.postDelayed(this, 10000L)
-            }
-        }
-
-        funkyInfoHandler?.post(funkyInfoRunnable)
-    }
-
-    private fun stopFunkyInfoTask() {
-        funkyInfoHandler?.removeCallbacksAndMessages(null)
-        funkyInfoHandler = null
     }
 
 
