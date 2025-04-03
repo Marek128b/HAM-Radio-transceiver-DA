@@ -81,14 +81,14 @@ fun DataScreen(navController: NavController) {
                             .weight(1f)
                             .height(squareSize)
                             .clip(RoundedCornerShape(25.dp))
-                            .background(Color(0x11FFFFFF))
+                            .background(Color(0x21FFFFFF))
                             .padding(5.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0x050000000)),
+                                .background(Color(0xAF000000)),
                             contentAlignment = Alignment.Center
                         ) {
                             NameCallBox(squareSize)
@@ -100,14 +100,14 @@ fun DataScreen(navController: NavController) {
                             .weight(1f)
                             .height(squareSize)
                             .clip(RoundedCornerShape(25.dp))
-                            .background(Color(0x11FFFFFF))
+                            .background(Color(0x21FFFFFF))
                             .padding(5.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0x050000000)),
+                                .background(Color(0xAF000000)),
                             contentAlignment = Alignment.Center
                         ) {
                             BatteryIndicator(modifier = Modifier.padding(16.dp))
@@ -122,14 +122,14 @@ fun DataScreen(navController: NavController) {
                         .fillMaxWidth()
                         .height(squareSize)
                         .clip(RoundedCornerShape(25.dp))
-                        .background(Color(0x11FFFFFF))
+                        .background(Color(0x21FFFFFF))
                         .padding(5.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0x050000000)),
+                            .background(Color(0xAF000000)),
                         contentAlignment = Alignment.Center
                     ) {
                         FrequencyLock(
@@ -144,14 +144,14 @@ fun DataScreen(navController: NavController) {
                         .fillMaxWidth()
                         .height(tempBoxSize)
                         .clip(RoundedCornerShape(25.dp))
-                        .background(Color(0x11FFFFFF))
+                        .background(Color(0x21FFFFFF))
                         .padding(5.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0x050000000))
+                            .background(Color(0xAF000000))
                             .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -620,6 +620,12 @@ fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
         val xStep = canvasWidth / (xValues.size - 1)
 
         // Zeichne die Linien
+        drawLine(
+            start = Offset(0.dp.toPx(), canvasHeight * (1 - yValues[9] / 100)),
+            end = Offset(canvasWidth, canvasHeight * (1 - yValues[9] / 100)),
+            color = Color(0x5FFFFFFF),
+            strokeWidth = 4f
+        )
         for (i in 1 until xValues.size) {
             val startX = xStep * (i - 1)
             val startY = canvasHeight * (1 - yValues[i - 1] / 100)
@@ -635,6 +641,12 @@ fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
         }
 
         // Zeichne X-Achse (Markierungen)
+        drawLine(
+            start = Offset(0.dp.toPx(), canvasHeight),
+            end = Offset(canvasWidth+10.dp.toPx(), canvasHeight),
+            color = Color.White,
+            strokeWidth = 4f
+        )
         for (i in xValues.indices) {
             val x = xStep * i
             drawLine(
@@ -647,7 +659,7 @@ fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
             drawContext.canvas.nativeCanvas.apply {
                 drawText(
                     "$i", // X-Wert
-                    x - 10.dp.toPx(),
+                    x - 4.dp.toPx(),
                     canvasHeight + 25.dp.toPx(),
                     Paint().apply {
                         color = android.graphics.Color.WHITE
@@ -658,6 +670,12 @@ fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
         }
 
         // Zeichne Y-Achse (Markierungen)
+        drawLine(
+            start = Offset(0.dp.toPx(), -10.dp.toPx()),
+            end = Offset(0.dp.toPx(), canvasHeight),
+            color = Color.White,
+            strokeWidth = 4f
+        )
         val yStep = canvasHeight / 5 // 5 Y-Achsenmarkierungen
         for (i in 0..5) {
             val y = canvasHeight - (yStep * i)
@@ -672,7 +690,7 @@ fun LineChartWithAxes(modifier: Modifier, data: List<Float>) {
                 drawText(
                     "${(100f / 5 * i).toInt()}",
                     -30.dp.toPx(),
-                    y + 10.dp.toPx(),
+                    y + 4.dp.toPx(),
                     Paint().apply {
                         color = android.graphics.Color.WHITE
                         textSize = 30f

@@ -284,6 +284,56 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /*
+    @Composable
+    fun DevicePairingHandler(
+        device: BluetoothDevice,
+        navController: NavController
+    ) {
+        var isBonded = isDeviceBonded(device)
+        var showPairingDialog by remember { mutableStateOf(!isBonded) }
+
+        // Dialog anzeigen, wenn das Gerät noch nicht gekoppelt ist
+        if (showPairingDialog) {
+            AlertDialog(
+                onDismissRequest = { showPairingDialog = false },
+                title = { Text(text = "Gerät koppeln?") },
+                text = { Text(text = "Möchtest du das Gerät ${device.name} koppeln?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showPairingDialog = false
+                        // Gerät verbinden, wenn bestätigt
+                        connectToDevice(device, navController)
+                    }) {
+                        Text("Ja")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPairingDialog = false }) {
+                        Text("Nein")
+                    }
+                }
+            )
+        }
+    }
+
+    fun getBluetoothDeviceByAddress(address: String): BluetoothDevice? {
+        val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+
+        return bluetoothAdapter?.getRemoteDevice(address)
+    }
+
+    fun isDeviceBonded(device: BluetoothDevice): Boolean {
+        val pairedDevices = BluetoothAdapter.getDefaultAdapter()?.bondedDevices
+        pairedDevices?.forEach {
+            if (it.address == device.address) {
+                return true  // Gerät ist gekoppelt
+            }
+        }
+        return false  // Gerät ist nicht gekoppelt
+    }
+     */
+
     private fun connectToDevice(device: BluetoothDevice, navController: NavController) {
         try {
             // Erstelle eine neue Verbindung, wenn keine bestehende Verbindung mehr besteht
@@ -518,7 +568,7 @@ class MainActivity : ComponentActivity() {
             // NavHost für die Navigation zwischen den Screens
             NavHost(navController = navController, startDestination = "bluetoothScreen") {
                 composable("bluetoothScreen") {
-                    BluetoothApp(receivedData, scannedDevices)
+                    BluetoothApp(receivedData, scannedDevices, navController)
                 }
                 composable("dataScreen") {
                     DataScreen(navController) // Übergeben der Daten
@@ -546,7 +596,7 @@ class MainActivity : ComponentActivity() {
                     .padding(20.dp)
                     .height(60.dp)
                     .clip(RoundedCornerShape(40.dp))
-                    .background(Color(0x8F000000))
+                    .background(Color(0xAF000000))
                     .clickable(enabled = true, onClick = {}) // Verhindert Durchklicken
             ) {
                 Row(
@@ -570,19 +620,20 @@ class MainActivity : ComponentActivity() {
                                         selectedDevice?.let {
                                             connectToDevice(it, navController)
                                             startListeningForData(receivedData)
-                                            sendFunkyInfo(false, false)
+                                            sendFunkyInfo(op = false, onlyTemp = false)
                                         } ?: Toast.makeText(
                                             applicationContext,
                                             "Kein Gerät ausgewählt",
                                             Toast.LENGTH_SHORT
                                         ).show()
+
                                     }
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Check,
                                         contentDescription = "Verbinden",
                                         modifier = Modifier.size(40.dp),
-                                        tint = Color.Blue
+                                        tint = Color(0xFF2727FF)
                                     )
                                 }
                             }
@@ -604,13 +655,14 @@ class MainActivity : ComponentActivity() {
                                             "Kein Gerät ausgewählt",
                                             Toast.LENGTH_SHORT
                                         ).show()
+                                        navController.navigate("bluetoothScreen")
                                     }
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Close,
                                         contentDescription = "Trennen",
                                         modifier = Modifier.size(35.dp),
-                                        tint = Color.Blue
+                                        tint = Color(0xFF2727FF)
                                     )
                                 }
                             }
@@ -666,7 +718,7 @@ class MainActivity : ComponentActivity() {
                                         imageVector = Icons.Rounded.Refresh,
                                         contentDescription = "Refresh",
                                         modifier = Modifier.size(35.dp),
-                                        tint = Color.Blue
+                                        tint = Color(0xFF2727FF)
                                     )
                                 }
                             }
@@ -688,7 +740,7 @@ class MainActivity : ComponentActivity() {
                                 imageVector = Icons.Rounded.Send,
                                 contentDescription = "Senden",
                                 modifier = Modifier.size(40.dp),
-                                tint = Color.Blue
+                                tint = Color(0xFF2727FF)
                             )
                         }
                     }
@@ -700,10 +752,13 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun BluetoothApp(
         receivedData: MutableState<String>,
-        scannedDevices: MutableState<List<String>>
+        scannedDevices: MutableState<List<String>>,
+        navController: NavController
     ) {
         val pairedDevices by remember { mutableStateOf(getPairedDevices()) }
         var selectedDeviceName by remember { mutableStateOf<String?>(null) }
+
+        var showPairingDialog by remember { mutableStateOf(false) }
 
         val gradientBrush = Brush.linearGradient(
             colors = listOf(Color(0xFF11144F), Color(0xFF1F4596)),
@@ -736,14 +791,14 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(25.dp))
-                                .background(Color(0x11FFFFFF))
+                                .background(Color(0x21FFFFFF))
                                 .padding(5.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(Color(0x050000000))
+                                    .background(Color(0xAF000000))
                             ) {
                                 Column {
 
@@ -843,14 +898,14 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(25.dp))
-                                .background(Color(0x11FFFFFF))
+                                .background(Color(0x21FFFFFF))
                                 .padding(5.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(Color(0x050000000))
+                                    .background(Color(0xAF000000))
                             ) {
                                 Column {
 
@@ -913,12 +968,18 @@ class MainActivity : ComponentActivity() {
                                                             selectedDeviceName = device
                                                             val deviceAddress = device.substringAfterLast("(").substringBefore(")")
                                                             selectedDevice = bluetoothAdapter?.bondedDevices?.find { it.address == deviceAddress }
+                                                            val bluetoothDevice = BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(
+                                                                device.substringAfter("(").substringBefore(")").trim()
+                                                            )
+
+                                                            showPairingDialog = true
+                                                            Log.d("SHOWPAIRING", showPairingDialog.toString())
+
                                                         }
                                                     )
                                                 }
                                                 .padding(20.dp) // Inneres Padding
-                                        )
-                                        {
+                                        ) {
                                             Column {
                                                 val deviceName = device.substringBefore("(").trim()
                                                 val macAddress = device.substringAfter("(").substringBefore(")").trim()
@@ -935,6 +996,22 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
+
+                                    Log.d("DEVICE", selectedDeviceName.toString())
+
+                                    /*
+                                    if (showPairingDialog) {
+                                        Log.d("DEVICEPAIRING", showPairingDialog.toString())
+                                        var device = getBluetoothDeviceByAddress(
+                                            selectedDeviceName.toString().substringAfter("(").substringBefore(")").trim()
+                                        )
+                                        if (device != null) {
+                                            DevicePairingHandler(device = device, navController = navController)
+                                        }
+
+                                    }
+                                    */
+
                                 }
                             }
                         }
