@@ -16,10 +16,10 @@
 #include <Wire.h>
 
 // #########################################
-// FIRMWARE VERSION v0.1.3
+// FIRMWARE VERSION v0.1.4
 // #########################################
 
-String FW_version = "v0.1.3";
+String FW_version = "v0.1.4";
 
 TFT_eSPI tft = TFT_eSPI();                     // Invoke custom library
 TFT_eSprite spriteAmpTEMP = TFT_eSprite(&tft); // Create Sprite object "spriteAmpTEMP" with pointer to "tft" object
@@ -39,6 +39,18 @@ SPI_FREQUENCY = 55000000
 SPI_TOUCH_FREQUENCY = 2500000
 TFT_BL = 46
 TFT_BACKLIGHT_ON = 1
+*/
+
+// Allocate the JSON document
+JsonDocument doc;
+JsonDocument docSend;
+DeserializationError desError;
+String name = "Georg";
+String call = "OE8GKE";
+/*
+Serial2:
+RX: 17
+TX: 16
 */
 
 // calibration: 155989 on 22.10.2024
@@ -91,6 +103,7 @@ float voltage = 0;
 #define NTC_in_pin 6
 unsigned long long lastNTCMeasurementMs = 0;
 #define NTCMeasureInterval 1000
+float temperaturePA = 0;
 
 // ##############################################################################################################################
 static IRAM_ATTR void enc_cb(void *arg);
@@ -108,14 +121,18 @@ float NTC_ADC2Temperature(unsigned int adc_value)
 {
   return (float)NTC_table[adc_value] / (float)10;
 }
-
+void IRAM_ATTR handleBT();
 // ##############################################################################################################################
 
 void setup()
 {
   Serial.begin(115200);
+  Serial2.begin(115200, SERIAL_8N1, 17, 16); // Serial for BT
   Serial.print("Firmware Version: ");
   Serial.println(FW_version);
+
+  Serial2.print("Firmware Version: ");
+  Serial2.println(FW_version);
 
   pinMode(backlight_led, OUTPUT);
   analogWrite(backlight_led, 255);
@@ -275,16 +292,18 @@ void loop()
     last_rxtx_status = digitalRead(Ptt_btn);
     rxtx_switch();
   }
+
+  handleBT();
 }
 
 // ##############################################################################################################################
 void updateVoltage()
 {
-  //Serial.println("Vbat adc value");
-  //Serial.println(analogRead(Vbat_pin));
-  //Serial.println("Vbat Voltage");
+  // Serial.println("Vbat adc value");
+  // Serial.println(analogRead(Vbat_pin));
+  // Serial.println("Vbat Voltage");
   voltage = (float)(((float)analogRead(Vbat_pin)) / (float)4095) * 3.3 * (12.2 / 2.2) + 0.6;
-  //Serial.println(voltage);
+  // Serial.println(voltage);
   printVoltage();
 }
 
@@ -436,5 +455,97 @@ void updateNTCTemperature()
   snprintf(strBuffer, sizeof(strBuffer), "Amplifier Temp: %.1f°C  ", NTC_ADC2Temperature(analogRead(NTC_in_pin))); // prints the RX and TX status
   spriteAmpTEMP.drawString(strBuffer, 0, 0);                                                                       // prints the millis to position 430,0 and with the font #7 which looks good for text
 
+  temperaturePA = NTC_ADC2Temperature(analogRead(NTC_in_pin));
   spriteAmpTEMP.pushSprite(0, 35);
+}
+
+// Transmits data via Serial to ESP for BT
+void IRAM_ATTR handleBT()
+{
+  doc.clear();
+  // Serial2.println("in bt func");
+
+  if (Serial2.available() > 0) // receiver
+  {
+    String input = "";
+    input = Serial2.readString();
+
+    Serial.println(input);
+    // Serial2.println(input);
+    // Serial2.println("---");
+    desError = deserializeJson(doc, input);
+
+    if (desError)
+    {
+      docSend.clear();
+      docSend["op"] = true;
+      docSend["frequency"] = 0.00;
+      docSend["voltage"] = 1.00;
+      docSend["name"] = name;
+      docSend["call"] = call;
+      docSend["temperature"] = 0.0;
+
+      String out;
+      serializeJson(docSend, out);
+
+      Serial.println("ERROR returned: ");
+      Serial.println(desError.c_str());
+
+      Serial.print("Transmitting: ");
+
+      // Generate the minified JSON and send it to the Serial port.
+      serializeJson(docSend, out);
+      Serial.print(out);
+      Serial2.println(out);
+    }
+
+    if (doc["op"]) // set value code
+    {
+      frequency = doc["frequency"].as<float>() * (float)1000000;
+      updateFrequencies(frequency);
+      printFreq(frequency);
+      printVFO_BFO(frequency);
+
+      if ((doc["name"].as<String>()) != "null")
+      {
+        name = doc["name"].as<String>();
+      }
+      if ((doc["call"].as<String>()) != "null")
+      {
+        call = doc["call"].as<String>();
+      }
+    }
+    else if (doc["op"] == 0) // get value code
+    {
+      docSend.clear();
+      docSend["op"] = false;
+      if (doc["frequency"].as<String>() != "null")
+      {
+        docSend["frequency"] = (float)frequency / (float)1000000;
+      }
+      if (doc["voltage"].as<String>() != "null")
+      {
+        docSend["voltage"] = voltage;
+      }
+      if (doc["name"].as<String>() != "null")
+      {
+        docSend["name"] = name;
+      }
+      if (doc["call"].as<String>() != "null")
+      {
+        docSend["call"] = call;
+      }
+      if (doc["temperature"].as<String>() != "null")
+      {
+        docSend["temperature"] = temperaturePA;
+      }
+
+      String out;
+      serializeJson(docSend, out);
+
+      Serial.print("Transmitting: ");
+      Serial.print(out);
+      Serial2.println(out);
+    }
+  }
 }
